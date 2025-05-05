@@ -1,0 +1,12 @@
+# Ignore specific files
+eval_changes.md
+git_instructions.md
+
+# Ignore common files
+.DS_Store
+Thumbs.db
+*.log
+*.tmp
+
+# Ignore node modules if you're using npm
+node_modules/
