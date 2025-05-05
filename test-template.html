@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Underscore.js Template Test</title>
+    <script src="underscore_fix.js"></script>
+</head>
+<body>
+    <h1>Underscore.js Template Test</h1>
+
+    <div id="output1"></div>
+    <div id="output2"></div>
+    <div id="output3"></div>
+    <div id="output4"></div>
+
+    <script>
+        // Test data
+        var data = {
+            name: "John",
+            items: ["Apple", "Banana", "Orange"],
+            user: {
+                firstName: "Jane",
+                lastName: "Doe",
+                roles: ["admin", "user"]
+            }
+        };
+
+        // Test 1: Basic interpolation in safe mode (default)
+        var template1 = _.template("Hello, <%= name %>!");
+        document.getElementById("output1").innerHTML =
+            "<h2>Test 1: Basic interpolation (Safe Mode)</h2>" +
+            "<p>Template: Hello, &lt;%= name %&gt;!</p>" +
+            "<p>Result: " + template1(data) + "</p>";
+
+        // Test 2: More complex template with escaping and property access
+        var template2 = _.template(
+            "<ul>" +
+            "<% _.each(items, function(item) { %>" +
+            "  <li><%= item %></li>" +
+            "<% }); %>" +
+            "</ul>" +
+            "<p>User: <%- user.firstName %> <%- user.lastName %></p>"
+        );
+        document.getElementById("output2").innerHTML =
+            "<h2>Test 2: Complex template (Safe Mode)</h2>" +
+            "<p>Result:</p>" + template2(data);
+
+        // Test 3: Switch to unsafe mode and test
+        _.templateSettings.safe = false;
+        var template3 = _.template("Hello, <%= name %>! Your roles: <%= user.roles.join(', ') %>");
+        document.getElementById("output3").innerHTML =
+            "<h2>Test 3: Basic interpolation (Unsafe Mode)</h2>" +
+            "<p>Template: Hello, &lt;%= name %&gt;! Your roles: &lt;%= user.roles.join(', ') %&gt;</p>" +
+            "<p>Result: " + template3(data) + "</p>";
+
+        // Test 4: Complex template with function calls in unsafe mode
+        var template4 = _.template(
+            "<ul>" +
+            "<% for(var i=0; i<items.length; i++) { %>" +
+            "  <li><%= items[i].toUpperCase() %></li>" +
+            "<% } %>" +
+            "</ul>"
+        );
+        document.getElementById("output4").innerHTML =
+            "<h2>Test 4: Complex template with functions (Unsafe Mode)</h2>" +
+            "<p>Result:</p>" + template4(data);
+    </script>
+</body>
+</html>
