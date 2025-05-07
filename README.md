@@ -9,8 +9,8 @@ This is a patched version of Underscore.js (renamed to `underscore_fix.js`) that
 2. **Template Function**: Added a safe mode for the template function that doesn't use `new Function()` to execute arbitrary code.
    - The safe implementation processes templates without using eval or Function constructor
    - It supports basic interpolation and escaping
-   - It has limited support for complex expressions
-   - Evaluate blocks are disabled in safe mode
+   - It includes a secure mini-interpreter for evaluate blocks
+   - Supports common JavaScript operations like loops, conditionals, and basic expressions
 
 3. **Configuration Option**: Added a `safe` option to `_.templateSettings` to control whether to use the safe implementation (default: true) or the original implementation.
 
@@ -41,14 +41,22 @@ Open `test-template.html` in a browser to see examples of both safe and unsafe t
 
 ## Security Considerations
 
-1. **Safe Mode Limitations**:
-   - The safe mode doesn't support evaluate blocks (`<% ... %>`)
-   - Complex expressions in interpolate blocks may not work
-   - Function calls in templates are limited
+1. **Safe Mode Features**:
+   - Executes code in a sandboxed environment
+   - Supports common template operations without using eval
+   - Implements a secure mini-interpreter for JavaScript expressions
+   - Supports loops, conditionals, variable assignments, and basic operations
+   - Prevents access to dangerous functions and properties
 
-2. **When to Use Unsafe Mode**:
+2. **Safe Mode Limitations**:
+   - Some complex JavaScript expressions may not be supported
+   - Limited support for object methods and prototype chain
+   - Not all JavaScript language features are available
+
+3. **When to Use Unsafe Mode**:
    - Only use unsafe mode with trusted template strings
    - Never use unsafe mode with templates that include user input
+   - Use unsafe mode only when you need advanced JavaScript features not supported in safe mode
 
 ## Compatibility
 

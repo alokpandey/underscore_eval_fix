@@ -3,14 +3,66 @@
 <head>
     <title>Underscore.js Template Test</title>
     <script src="underscore_fix.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .test-section {
+            margin-bottom: 30px;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .test-section h2 {
+            margin-top: 0;
+            color: #333;
+        }
+        .code {
+            background-color: #f5f5f5;
+            padding: 10px;
+            border-radius: 3px;
+            font-family: monospace;
+            white-space: pre-wrap;
+        }
+        .result {
+            margin-top: 10px;
+            padding: 10px;
+            border: 1px solid #eee;
+            background-color: #fafafa;
+        }
+        .safe {
+            color: green;
+            font-weight: bold;
+        }
+        .unsafe {
+            color: red;
+            font-weight: bold;
+        }
+    </style>
 </head>
 <body>
     <h1>Underscore.js Template Test</h1>
+    <p>Testing the safe and unsafe implementations of Underscore.js templates</p>
 
-    <div id="output1"></div>
-    <div id="output2"></div>
-    <div id="output3"></div>
-    <div id="output4"></div>
+    <div id="safe-mode-tests">
+        <h2>Safe Mode Tests <span class="safe">(No eval/Function constructor)</span></h2>
+
+        <div id="output1" class="test-section"></div>
+        <div id="output2" class="test-section"></div>
+        <div id="output5" class="test-section"></div>
+        <div id="output6" class="test-section"></div>
+        <div id="output7" class="test-section"></div>
+    </div>
+
+    <div id="unsafe-mode-tests">
+        <h2>Unsafe Mode Tests <span class="unsafe">(Uses eval/Function constructor)</span></h2>
+
+        <div id="output3" class="test-section"></div>
+        <div id="output4" class="test-section"></div>
+    </div>
 
     <script>
         // Test data
@@ -21,48 +73,110 @@
                 firstName: "Jane",
                 lastName: "Doe",
                 roles: ["admin", "user"]
-            }
+            },
+            numbers: [1, 2, 3, 4, 5],
+            active: true
         };
 
-        // Test 1: Basic interpolation in safe mode (default)
+        // Make sure we start in safe mode
+        _.templateSettings.safe = true;
+
+        // Test 1: Basic interpolation in safe mode
         var template1 = _.template("Hello, <%= name %>!");
         document.getElementById("output1").innerHTML =
-            "<h2>Test 1: Basic interpolation (Safe Mode)</h2>" +
-            "<p>Template: Hello, &lt;%= name %&gt;!</p>" +
-            "<p>Result: " + template1(data) + "</p>";
+            "<h2>Test 1: Basic Interpolation</h2>" +
+            "<div class='code'>&lt;%= name %&gt;</div>" +
+            "<div class='result'>" + template1(data) + "</div>";
 
         // Test 2: More complex template with escaping and property access
         var template2 = _.template(
-            "<ul>" +
-            "<% _.each(items, function(item) { %>" +
-            "  <li><%= item %></li>" +
-            "<% }); %>" +
-            "</ul>" +
+            "<ul>\n" +
+            "<% _.each(items, function(item) { %>\n" +
+            "  <li><%= item %></li>\n" +
+            "<% }); %>\n" +
+            "</ul>\n" +
             "<p>User: <%- user.firstName %> <%- user.lastName %></p>"
         );
         document.getElementById("output2").innerHTML =
-            "<h2>Test 2: Complex template (Safe Mode)</h2>" +
-            "<p>Result:</p>" + template2(data);
+            "<h2>Test 2: _.each Loop and Escaping</h2>" +
+            "<div class='code'>&lt;% _.each(items, function(item) { %&gt;\n" +
+            "  &lt;li&gt;&lt;%= item %&gt;&lt;/li&gt;\n" +
+            "&lt;% }); %&gt;</div>" +
+            "<div class='result'>" + template2(data) + "</div>";
 
-        // Test 3: Switch to unsafe mode and test
+        // Test 5: For loop in safe mode
+        var template5 = _.template(
+            "<ul>\n" +
+            "<% for(var i=0; i<items.length; i++) { %>\n" +
+            "  <li><%= items[i] %> (index: <%= i %>)</li>\n" +
+            "<% } %>\n" +
+            "</ul>"
+        );
+        document.getElementById("output5").innerHTML =
+            "<h2>Test 5: For Loop</h2>" +
+            "<div class='code'>&lt;% for(var i=0; i&lt;items.length; i++) { %&gt;\n" +
+            "  &lt;li&gt;&lt;%= items[i] %&gt; (index: &lt;%= i %&gt;)&lt;/li&gt;\n" +
+            "&lt;% } %&gt;</div>" +
+            "<div class='result'>" + template5(data) + "</div>";
+
+        // Test 6: If statement in safe mode
+        var template6 = _.template(
+            "<% if (active) { %>\n" +
+            "  <p>User is active</p>\n" +
+            "<% } else { %>\n" +
+            "  <p>User is inactive</p>\n" +
+            "<% } %>"
+        );
+        document.getElementById("output6").innerHTML =
+            "<h2>Test 6: If Statement</h2>" +
+            "<div class='code'>&lt;% if (active) { %&gt;\n" +
+            "  &lt;p&gt;User is active&lt;/p&gt;\n" +
+            "&lt;% } else { %&gt;\n" +
+            "  &lt;p&gt;User is inactive&lt;/p&gt;\n" +
+            "&lt;% } %&gt;</div>" +
+            "<div class='result'>" + template6(data) + "</div>";
+
+        // Test 7: Print function in safe mode
+        var template7 = _.template(
+            "<% print('Sum of numbers: '); %>\n" +
+            "<% var sum = 0; %>\n" +
+            "<% for(var i=0; i<numbers.length; i++) { %>\n" +
+            "<%   sum += numbers[i]; %>\n" +
+            "<% } %>\n" +
+            "<%= sum %>"
+        );
+        document.getElementById("output7").innerHTML =
+            "<h2>Test 7: Print Function and Variables</h2>" +
+            "<div class='code'>&lt;% print('Sum of numbers: '); %&gt;\n" +
+            "&lt;% var sum = 0; %&gt;\n" +
+            "&lt;% for(var i=0; i&lt;numbers.length; i++) { %&gt;\n" +
+            "&lt;%   sum += numbers[i]; %&gt;\n" +
+            "&lt;% } %&gt;\n" +
+            "&lt;%= sum %&gt;</div>" +
+            "<div class='result'>" + template7(data) + "</div>";
+
+        // Switch to unsafe mode for the remaining tests
         _.templateSettings.safe = false;
+
+        // Test 3: Basic interpolation in unsafe mode
         var template3 = _.template("Hello, <%= name %>! Your roles: <%= user.roles.join(', ') %>");
         document.getElementById("output3").innerHTML =
-            "<h2>Test 3: Basic interpolation (Unsafe Mode)</h2>" +
-            "<p>Template: Hello, &lt;%= name %&gt;! Your roles: &lt;%= user.roles.join(', ') %&gt;</p>" +
-            "<p>Result: " + template3(data) + "</p>";
+            "<h2>Test 3: Function Calls (join)</h2>" +
+            "<div class='code'>&lt;%= user.roles.join(', ') %&gt;</div>" +
+            "<div class='result'>" + template3(data) + "</div>";
 
         // Test 4: Complex template with function calls in unsafe mode
         var template4 = _.template(
-            "<ul>" +
-            "<% for(var i=0; i<items.length; i++) { %>" +
-            "  <li><%= items[i].toUpperCase() %></li>" +
-            "<% } %>" +
+            "<ul>\n" +
+            "<% for(var i=0; i<items.length; i++) { %>\n" +
+            "  <li><%= items[i].toUpperCase() %></li>\n" +
+            "<% } %>\n" +
             "</ul>"
         );
         document.getElementById("output4").innerHTML =
-            "<h2>Test 4: Complex template with functions (Unsafe Mode)</h2>" +
-            "<p>Result:</p>" + template4(data);
+            "<h2>Test 4: String Methods (toUpperCase)</h2>" +
+            "<div class='code'>&lt;%= items[i].toUpperCase() %&gt;</div>" +
+            "<div class='result'>" + template4(data) + "</div>";
     </script>
 </body>
 </html>

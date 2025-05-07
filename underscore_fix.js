@@ -1018,12 +1018,10 @@
             }
             result += interpValue;
           } else if (m.evaluate) {
-            // For evaluate blocks, we can't safely execute arbitrary code
-            // Instead, we'll support a limited subset of operations
+            // For evaluate blocks, we'll use our safe interpreter
             try {
-              // This is where you'd implement a safe subset of JavaScript
-              // For now, we'll just warn that evaluate blocks are disabled in safe mode
-              console.warn('Evaluate blocks are disabled in safe template mode:', m.evaluate);
+              // Execute the code safely using our interpreter
+              safeEval(m.evaluate, data, _, result);
             } catch (e) {
               console.error('Template error in evaluate expression:', m.evaluate, e);
             }
@@ -1068,6 +1066,316 @@
         }
 
         return value;
+      }
+
+      // Safe evaluation function for template evaluate blocks
+      function safeEval(code, data, _) {
+        // Create a sandboxed environment with limited capabilities
+        var sandbox = Object.create(null);
+
+        // Add safe versions of common JavaScript functions
+        var safeGlobals = {
+          // Safe versions of common JavaScript functions
+          Array: Array,
+          Object: Object,
+          String: String,
+          Number: Number,
+          Boolean: Boolean,
+          Date: Date,
+          Math: Math,
+          parseInt: parseInt,
+          parseFloat: parseFloat,
+          isNaN: isNaN,
+          isFinite: isFinite,
+
+          // Add underscore utility functions
+          _: _,
+
+          // Add data object
+          data: data,
+
+          // Add print function (appends to result)
+          print: function() {
+            var args = Array.prototype.slice.call(arguments);
+            result += args.join('');
+          }
+        };
+
+        // Copy all properties from data to sandbox
+        for (var key in data) {
+          if (data.hasOwnProperty(key)) {
+            sandbox[key] = data[key];
+          }
+        }
+
+        // Copy all safe globals to sandbox
+        for (var key in safeGlobals) {
+          if (safeGlobals.hasOwnProperty(key)) {
+            sandbox[key] = safeGlobals[key];
+          }
+        }
+
+        // Parse and execute common template operations
+
+        // 1. Handle for loops: for(var i=0; i<items.length; i++) { ... }
+        var forLoopRegex = /^\s*for\s*\(\s*var\s+(\w+)\s*=\s*([^;]+);\s*\1\s*<\s*([^;]+);\s*\1\s*\+\+\s*\)\s*\{([\s\S]*)\}\s*$/;
+        var forLoopMatch = code.match(forLoopRegex);
+
+        if (forLoopMatch) {
+          var loopVar = forLoopMatch[1];
+          var startVal = evaluateSimpleExpression(forLoopMatch[2], sandbox);
+          var endVal = evaluateSimpleExpression(forLoopMatch[3], sandbox);
+          var loopBody = forLoopMatch[4];
+
+          for (var i = startVal; i < endVal; i++) {
+            // Create a new scope for each iteration
+            var iterationScope = Object.create(sandbox);
+            iterationScope[loopVar] = i;
+
+            // Execute the loop body
+            executeStatements(loopBody, iterationScope);
+          }
+
+          return;
+        }
+
+        // 2. Handle forEach/each loops: _.each(items, function(item) { ... })
+        var eachLoopRegex = /^\s*_\.each\s*\(\s*(\w+)\s*,\s*function\s*\(\s*(\w+)(?:\s*,\s*(\w+))?\s*\)\s*\{([\s\S]*)\}\s*\)\s*;?\s*$/;
+        var eachLoopMatch = code.match(eachLoopRegex);
+
+        if (eachLoopMatch) {
+          var collection = sandbox[eachLoopMatch[1]];
+          var itemVar = eachLoopMatch[2];
+          var indexVar = eachLoopMatch[3];
+          var loopBody = eachLoopMatch[4];
+
+          if (Array.isArray(collection)) {
+            for (var i = 0; i < collection.length; i++) {
+              // Create a new scope for each iteration
+              var iterationScope = Object.create(sandbox);
+              iterationScope[itemVar] = collection[i];
+              if (indexVar) iterationScope[indexVar] = i;
+
+              // Execute the loop body
+              executeStatements(loopBody, iterationScope);
+            }
+          }
+
+          return;
+        }
+
+        // 3. Handle if statements: if (condition) { ... } else { ... }
+        var ifRegex = /^\s*if\s*\(\s*([^)]+)\s*\)\s*\{([\s\S]*?)(?:\}\s*else\s*\{([\s\S]*))?\}\s*$/;
+        var ifMatch = code.match(ifRegex);
+
+        if (ifMatch) {
+          var condition = evaluateSimpleExpression(ifMatch[1], sandbox);
+          var thenBlock = ifMatch[2];
+          var elseBlock = ifMatch[3];
+
+          if (condition) {
+            executeStatements(thenBlock, sandbox);
+          } else if (elseBlock) {
+            executeStatements(elseBlock, sandbox);
+          }
+
+          return;
+        }
+
+        // 4. Handle simple variable assignments: var x = expression;
+        var assignmentRegex = /^\s*var\s+(\w+)\s*=\s*([^;]+);\s*$/;
+        var assignmentMatch = code.match(assignmentRegex);
+
+        if (assignmentMatch) {
+          var varName = assignmentMatch[1];
+          var expression = assignmentMatch[2];
+
+          sandbox[varName] = evaluateSimpleExpression(expression, sandbox);
+          return;
+        }
+
+        // 5. Handle print statements: print("Hello", name);
+        var printRegex = /^\s*print\s*\((.*)\);\s*$/;
+        var printMatch = code.match(printRegex);
+
+        if (printMatch) {
+          var args = parseArguments(printMatch[1], sandbox);
+          result += args.join('');
+          return;
+        }
+
+        // 6. Handle function calls: func(arg1, arg2);
+        var funcCallRegex = /^\s*(\w+)\s*\((.*)\);\s*$/;
+        var funcCallMatch = code.match(funcCallRegex);
+
+        if (funcCallMatch) {
+          var funcName = funcCallMatch[1];
+          var argsStr = funcCallMatch[2];
+
+          if (sandbox[funcName] && typeof sandbox[funcName] === 'function') {
+            var args = parseArguments(argsStr, sandbox);
+            sandbox[funcName].apply(null, args);
+          }
+
+          return;
+        }
+
+        // If we get here, we couldn't parse the code
+        console.warn('Could not safely evaluate:', code);
+      }
+
+      // Helper function to evaluate simple expressions
+      function evaluateSimpleExpression(expr, scope) {
+        expr = expr.trim();
+
+        // Handle numeric literals
+        if (/^-?\d+(\.\d+)?$/.test(expr)) {
+          return parseFloat(expr);
+        }
+
+        // Handle string literals
+        if (/^["'].*["']$/.test(expr)) {
+          return expr.slice(1, -1);
+        }
+
+        // Handle boolean literals
+        if (expr === 'true') return true;
+        if (expr === 'false') return false;
+
+        // Handle null/undefined
+        if (expr === 'null') return null;
+        if (expr === 'undefined') return undefined;
+
+        // Handle array/object property access (e.g., items.length)
+        var dotParts = expr.split('.');
+        if (dotParts.length > 1) {
+          var obj = scope[dotParts[0]];
+          for (var i = 1; i < dotParts.length; i++) {
+            if (obj == null) return undefined;
+            obj = obj[dotParts[i]];
+          }
+          return obj;
+        }
+
+        // Handle simple variable references
+        if (/^\w+$/.test(expr)) {
+          return scope[expr];
+        }
+
+        // Handle array indexing (e.g., items[0])
+        var arrayAccessMatch = expr.match(/^(\w+)\[(\d+)\]$/);
+        if (arrayAccessMatch) {
+          var array = scope[arrayAccessMatch[1]];
+          var index = parseInt(arrayAccessMatch[2], 10);
+          return array ? array[index] : undefined;
+        }
+
+        // Handle simple binary operations
+        var binaryOpMatch = expr.match(/^(.+?)\s*([\+\-\*\/\%])\s*(.+)$/);
+        if (binaryOpMatch) {
+          var left = evaluateSimpleExpression(binaryOpMatch[1], scope);
+          var op = binaryOpMatch[2];
+          var right = evaluateSimpleExpression(binaryOpMatch[3], scope);
+
+          switch (op) {
+            case '+': return left + right;
+            case '-': return left - right;
+            case '*': return left * right;
+            case '/': return left / right;
+            case '%': return left % right;
+          }
+        }
+
+        // Handle simple comparisons
+        var comparisonMatch = expr.match(/^(.+?)\s*(==|===|!=|!==|<|>|<=|>=)\s*(.+)$/);
+        if (comparisonMatch) {
+          var left = evaluateSimpleExpression(comparisonMatch[1], scope);
+          var op = comparisonMatch[2];
+          var right = evaluateSimpleExpression(comparisonMatch[3], scope);
+
+          switch (op) {
+            case '==': return left == right;
+            case '===': return left === right;
+            case '!=': return left != right;
+            case '!==': return left !== right;
+            case '<': return left < right;
+            case '>': return left > right;
+            case '<=': return left <= right;
+            case '>=': return left >= right;
+          }
+        }
+
+        // Handle logical operations
+        var logicalMatch = expr.match(/^(.+?)\s*(&&|\|\|)\s*(.+)$/);
+        if (logicalMatch) {
+          var left = evaluateSimpleExpression(logicalMatch[1], scope);
+          var op = logicalMatch[2];
+
+          if (op === '&&') {
+            return left ? evaluateSimpleExpression(logicalMatch[3], scope) : left;
+          } else { // ||
+            return left ? left : evaluateSimpleExpression(logicalMatch[3], scope);
+          }
+        }
+
+        // If we can't evaluate it, return undefined
+        console.warn('Could not evaluate expression:', expr);
+        return undefined;
+      }
+
+      // Helper function to execute multiple statements
+      function executeStatements(code, scope) {
+        // Split the code into statements
+        var statements = code.split(';');
+
+        for (var i = 0; i < statements.length; i++) {
+          var stmt = statements[i].trim();
+          if (stmt) {
+            safeEval(stmt + ';', data, _);
+          }
+        }
+      }
+
+      // Helper function to parse function arguments
+      function parseArguments(argsStr, scope) {
+        if (!argsStr.trim()) return [];
+
+        var args = [];
+        var inString = false;
+        var stringChar = '';
+        var currentArg = '';
+        var parenDepth = 0;
+
+        for (var i = 0; i < argsStr.length; i++) {
+          var char = argsStr[i];
+
+          if (char === '"' || char === "'") {
+            if (inString && char === stringChar) {
+              inString = false;
+            } else if (!inString) {
+              inString = true;
+              stringChar = char;
+            }
+            currentArg += char;
+          } else if (char === '(' && !inString) {
+            parenDepth++;
+            currentArg += char;
+          } else if (char === ')' && !inString) {
+            parenDepth--;
+            currentArg += char;
+          } else if (char === ',' && !inString && parenDepth === 0) {
+            args.push(evaluateSimpleExpression(currentArg, scope));
+            currentArg = '';
+          } else {
+            currentArg += char;
+          }
+        }
+
+        if (currentArg.trim()) {
+          args.push(evaluateSimpleExpression(currentArg, scope));
+        }
+
+        return args;
       }
 
       // For compatibility, provide a source property
