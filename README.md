@@ -14,17 +14,62 @@ This is a patched version of Underscore.js (renamed to `underscore_fix.js`) that
 
 3. **Configuration Option**: Added a `safe` option to `_.templateSettings` to control whether to use the safe implementation (default: true) or the original implementation.
 
+## Implementation Options
+
+This project provides two different implementations:
+
+1. **Underscore Fix** (`underscore_fix.js`): A safer implementation with a custom interpreter that maintains backward compatibility
+2. **Underscore Pure** (`underscore_pure.js`): A pure string interpolation implementation with no code execution
+
+### Which Implementation Should You Use?
+
+#### Choose Underscore Fix (`underscore_fix.js`) if:
+
+- You have existing templates with JavaScript logic (`<% ... %>` blocks)
+- You need backward compatibility with minimal code changes
+- You want a balance between security and functionality
+- You need features like loops and conditionals in templates
+
+```html
+<!-- In your HTML -->
+<script src="underscore_fix.js"></script>
+```
+
+#### Choose Underscore Pure (`underscore_pure.js`) if:
+
+- You're starting a new project or can refactor existing templates
+- Security is your absolute priority
+- You only need simple string interpolation
+- You prefer to keep logic in JavaScript code, not in templates
+
+```html
+<!-- In your HTML -->
+<script src="underscore_pure.js"></script>
+```
+
+**Note**: You only need to include one of these files in your HTML, not both.
+
 ## Usage
 
-### Basic Usage (Safe Mode)
+### Basic Usage with Underscore Fix (Safe Mode)
 
 ```javascript
 // Safe mode is enabled by default
 var compiled = _.template("Hello, <%= name %>!");
 compiled({ name: "John" }); // "Hello, John!"
+
+// Safe mode also supports basic JavaScript operations
+var template = _.template(
+  "<ul>" +
+  "<% for(var i=0; i<items.length; i++) { %>" +
+  "  <li><%= items[i] %></li>" +
+  "<% } %>" +
+  "</ul>"
+);
+template({items: ["Apple", "Banana"]}); // "<ul><li>Apple</li><li>Banana</li></ul>"
 ```
 
-### Disabling Safe Mode
+### Disabling Safe Mode (Underscore Fix only)
 
 ```javascript
 // Disable safe mode if you need full template functionality
@@ -35,9 +80,23 @@ var compiled = _.template("<% print('Hello, ' + name + '!'); %>");
 compiled({ name: "John" }); // "Hello, John!"
 ```
 
+### Using Underscore Pure
+
+```javascript
+// Only supports interpolation and escaping
+var template = _.template("Hello, <%= name %>!");
+template({ name: "John" }); // "Hello, John!"
+
+// HTML escaping for security
+var template2 = _.template("<p><%- userInput %></p>");
+template2({ userInput: "<script>alert('XSS')</script>" });
+// "<p>&lt;script&gt;alert('XSS')&lt;/script&gt;</p>"
+```
+
 ### Testing
 
-Open `test-template.html` in a browser to see examples of both safe and unsafe template modes.
+- Open `test-template.html` to see examples of the Underscore Fix implementation
+- Open `test-pure-template.html` to see examples of the Underscore Pure implementation
 
 ## Security Considerations
 
