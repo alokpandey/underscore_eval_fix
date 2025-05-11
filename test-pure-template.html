@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Underscore Pure Template Test</title>
+    <script src="underscore_pure.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .test-section {
+            margin-bottom: 30px;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .test-section h2 {
+            margin-top: 0;
+            color: #333;
+        }
+        .code {
+            background-color: #f5f5f5;
+            padding: 10px;
+            border-radius: 3px;
+            font-family: monospace;
+            white-space: pre-wrap;
+        }
+        .result {
+            margin-top: 10px;
+            padding: 10px;
+            border: 1px solid #eee;
+            background-color: #fafafa;
+        }
+        .safe {
+            color: green;
+            font-weight: bold;
+        }
+        .security-feature {
+            background-color: #e8f5e9;
+            padding: 10px;
+            margin: 20px 0;
+            border-left: 4px solid #4caf50;
+        }
+        .security-feature h3 {
+            margin-top: 0;
+            color: #2e7d32;
+        }
+    </style>
+</head>
+<body>
+    <h1>Underscore Pure Template Test</h1>
+    <p>Testing the pure string interpolation implementation of Underscore.js templates</p>
+    
+    <div class="security-feature">
+        <h3>Security Features</h3>
+        <ol>
+            <li><strong>No eval or Function constructor</strong> - Templates are processed using pure string interpolation</li>
+            <li><strong>No JavaScript logic execution</strong> - No control structures, no function calls</li>
+            <li><strong>Strict data sandboxing</strong> - Only access to provided data object</li>
+            <li><strong>HTML escaping by default</strong> - Protection against XSS attacks</li>
+            <li><strong>Dangerous property blocking</strong> - No access to constructor, prototype, window, etc.</li>
+        </ol>
+    </div>
+    
+    <div id="pure-template-tests">
+        <h2>Pure Template Tests <span class="safe">(No eval/Function constructor)</span></h2>
+        
+        <div id="output1" class="test-section"></div>
+        <div id="output2" class="test-section"></div>
+        <div id="output3" class="test-section"></div>
+        <div id="output4" class="test-section"></div>
+        <div id="output5" class="test-section"></div>
+    </div>
+    
+    <script>
+        // Test data
+        var data = {
+            name: "John",
+            items: ["Apple", "Banana", "Orange"],
+            user: {
+                firstName: "Jane",
+                lastName: "Doe",
+                roles: ["admin", "user"]
+            },
+            numbers: [1, 2, 3, 4, 5],
+            active: true,
+            htmlContent: "<script>alert('XSS')</script>"
+        };
+        
+        // Test 1: Basic interpolation
+        var template1 = _.template("Hello, <%= name %>!");
+        document.getElementById("output1").innerHTML = 
+            "<h2>Test 1: Basic Interpolation</h2>" +
+            "<div class='code'>&lt;%= name %&gt;</div>" +
+            "<div class='result'>" + template1(data) + "</div>";
+        
+        // Test 2: HTML escaping
+        var template2 = _.template(
+            "<p>User input (escaped): <%- htmlContent %></p>" +
+            "<p>User input (not escaped): <%= htmlContent %></p>"
+        );
+        document.getElementById("output2").innerHTML = 
+            "<h2>Test 2: HTML Escaping</h2>" +
+            "<div class='code'>&lt;%- htmlContent %&gt;</div>" +
+            "<div class='result'>" + template2(data) + "</div>";
+        
+        // Test 3: Nested property access
+        var template3 = _.template(
+            "<p>User: <%= user.firstName %> <%= user.lastName %></p>" +
+            "<p>First item: <%= items[0] %></p>"
+        );
+        document.getElementById("output3").innerHTML = 
+            "<h2>Test 3: Nested Property Access</h2>" +
+            "<div class='code'>&lt;%= user.firstName %&gt; &lt;%= user.lastName %&gt;</div>" +
+            "<div class='result'>" + template3(data) + "</div>";
+        
+        // Test 4: Security - attempt to access dangerous properties
+        var template4 = _.template(
+            "<p>Constructor: <%= constructor %></p>" +
+            "<p>Window: <%= window %></p>" +
+            "<p>Document: <%= document %></p>" +
+            "<p>Prototype: <%= __proto__ %></p>"
+        );
+        document.getElementById("output4").innerHTML = 
+            "<h2>Test 4: Security - Dangerous Property Blocking</h2>" +
+            "<div class='code'>&lt;%= constructor %&gt;<br>&lt;%= window %&gt;<br>&lt;%= document %&gt;<br>&lt;%= __proto__ %&gt;</div>" +
+            "<div class='result'>" + template4(data) + "</div>";
+        
+        // Test 5: No JavaScript logic execution
+        var template5 = _.template(
+            "<p>This is just text: <% for(var i=0; i<items.length; i++) { %> loop <% } %></p>" +
+            "<p>No JavaScript execution: <% if (active) { %> active <% } %></p>"
+        );
+        document.getElementById("output5").innerHTML = 
+            "<h2>Test 5: No JavaScript Logic Execution</h2>" +
+            "<div class='code'>&lt;% for(var i=0; i&lt;items.length; i++) { %&gt; loop &lt;% } %&gt;</div>" +
+            "<div class='result'>" + template5(data) + "</div>";
+    </script>
+</body>
+</html>
