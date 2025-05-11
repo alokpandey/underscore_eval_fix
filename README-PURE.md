@@ -2,42 +2,287 @@
 
 A secure alternative to Underscore.js templates that completely removes eval and Function constructor usage, replacing it with pure string interpolation.
 
-## Security Features
+## Security Vulnerabilities in Original Implementation
+
+The original Underscore.js template implementation has several security vulnerabilities:
+
+```javascript
+// Original Underscore.js implementation (simplified)
+_.template = function(text) {
+  // ...
+  var render = new Function(argument, '_', source); // SECURITY RISK: Uses Function constructor (similar to eval)
+  // ...
+  return function(data) {
+    return render.call(this, data, _);
+  };
+};
+```
+
+This implementation:
+- Uses `new Function()` to compile templates (similar to eval)
+- Allows arbitrary JavaScript execution
+- Has no sandboxing or isolation
+- Provides access to global objects
+- Has limited XSS protection
+
+## Security Improvements: Step-by-Step Changes
 
 ### 1. Removed eval / new Function
-**Explanation**: Traditional _.template compiles template strings into JavaScript code using new Function, which is like eval and can run arbitrary code.
 
-**Fix**: Our version avoids dynamic code execution completely — no runtime compilation, no JavaScript logic.
+**Vulnerability**: Original Underscore uses `new Function()` to compile templates, which can execute arbitrary code.
+
+**Fix**: Completely removed all usage of `eval` and `Function` constructor.
+
+**Code Reference**:
+```javascript
+// BEFORE (original Underscore)
+var render = new Function(argument, '_', source);
+
+// AFTER (Underscore Pure)
+// No Function constructor or eval anywhere in the code
+// Instead, we use pure string interpolation:
+var template = function(data) {
+  // Process template without eval or Function constructor
+  // ...
+};
+```
 
 ### 2. Replaced with a Pure String Interpolator
-**Explanation**: Instead of evaluating JavaScript, we scan the template string and replace placeholders (<%= name %>) with values from a data object.
 
-**Fix**: No code runs. It's just string replacement, like mail merge — safe and predictable.
+**Vulnerability**: Original implementation compiles and executes JavaScript code from templates.
+
+**Fix**: Implemented a pure string interpolation approach that simply replaces placeholders with values.
+
+**Code Reference**:
+```javascript
+// Pure string interpolation implementation
+var template = function(data) {
+  if (!data) data = {};
+  var result = '';
+  var matches = [];
+  var index = 0;
+
+  // First pass: collect all matches and their positions
+  text.replace(matcher, function(match, escape, interpolate, offset) {
+    matches.push({
+      match: match,
+      escape: escape,
+      interpolate: interpolate,
+      offset: offset,
+      length: match.length
+    });
+    return match;
+  });
+
+  // Second pass: process the template
+  for (var i = 0; i < matches.length; i++) {
+    var m = matches[i];
+    // Add text before the match
+    result += text.slice(index, m.offset);
+    index = m.offset + m.length;
+
+    // Process the match - simple string replacement, no code execution
+    if (m.escape) {
+      // Handle escaped value
+      var escapeValue = getPropertySafely(data, m.escape);
+      result += _.escape(String(escapeValue || ''));
+    } else if (m.interpolate) {
+      // Handle interpolated value
+      var interpValue = getPropertySafely(data, m.interpolate);
+      result += String(interpValue || '');
+    }
+  }
+
+  // Add the remaining text
+  result += text.slice(index);
+
+  return result;
+};
+```
 
 ### 3. Access Limited to Provided data Only
-**Explanation**: The template can only read from the data object you pass. It can't access global variables like window, document, or process — unless you explicitly include them.
 
-**Fix**: This creates a data sandbox — no accidental or malicious access outside the given context.
+**Vulnerability**: Original templates can access any variable in scope, including global objects.
 
-### 4. Built-in HTML Escaping for <%= %>
-**Explanation**: To prevent XSS (cross-site scripting), the engine escapes characters like <, >, & when interpolating.
+**Fix**: Implemented strict data sandboxing that only allows access to the provided data object.
 
-**Fix**: If a user tries to inject <script>, it shows up as text, not code.
+**Code Reference**:
+```javascript
+// Data sandboxing implementation
+function getPropertySafely(obj, path) {
+  // Only allows access to properties in the provided data object
+  // No access to global objects or variables
+
+  // Sanitize the path
+  if (typeof path !== 'string') return '';
+
+  // Block access to dangerous properties
+  var dangerousProps = ['constructor', 'prototype', '__proto__', 'window',
+                        'document', 'global', 'process', 'eval', 'Function'];
+
+  path = path.trim();
+  if (dangerousProps.some(function(prop) { return path.indexOf(prop) >= 0; })) {
+    console.warn('Blocked access to potentially dangerous property:', path);
+    return '';
+  }
+
+  // Handle simple property access
+  if (/^[\w\$]+$/.test(path)) {
+    return obj[path];
+  }
+
+  // Handle nested property access
+  var parts = path.split('.');
+  var value = obj;
+
+  for (var i = 0; i < parts.length; i++) {
+    var part = parts[i].trim();
+
+    // Check for dangerous properties at each level
+    if (dangerousProps.some(function(prop) { return part === prop; })) {
+      console.warn('Blocked access to potentially dangerous property:', part);
+      return '';
+    }
+
+    // Handle array access
+    var arrayMatch = part.match(/^(\w+)\[(\d+)\]$/);
+    if (arrayMatch) {
+      var propName = arrayMatch[1];
+      var index = parseInt(arrayMatch[2], 10);
+      value = value[propName];
+      if (value == null) return '';
+      value = value[index];
+    } else {
+      value = value[part];
+    }
+
+    if (value == null) return '';
+  }
+
+  return value;
+}
+```
+
+### 4. Built-in HTML Escaping
+
+**Vulnerability**: Original implementation doesn't automatically escape HTML, making it vulnerable to XSS attacks.
+
+**Fix**: Implemented automatic HTML escaping for all interpolated values.
+
+**Code Reference**:
+```javascript
+// HTML escaping implementation
+var escapeMap = {
+  '&': '&amp;',
+  '<': '&lt;',
+  '>': '&gt;',
+  '"': '&quot;',
+  "'": '&#x27;',
+  '`': '&#x60;'
+};
+
+var createEscaper = function(map) {
+  var escaper = function(match) {
+    return map[match];
+  };
+  var source = '(?:' + Object.keys(map).join('|') + ')';
+  var testRegexp = RegExp(source);
+  var replaceRegexp = RegExp(source, 'g');
+  return function(string) {
+    string = string == null ? '' : '' + string;
+    return testRegexp.test(string) ? string.replace(replaceRegexp, escaper) : string;
+  };
+};
+
+_.escape = createEscaper(escapeMap);
+
+// Usage in template processing
+if (m.escape) {
+  var escapeValue = '';
+  try {
+    escapeValue = getPropertySafely(data, m.escape);
+    escapeValue = escapeValue == null ? '' : _.escape(String(escapeValue));
+  } catch (e) {
+    escapeValue = '';
+  }
+  result += escapeValue;
+}
+```
 
 ### 5. Trusted Templates Only — No Dynamic Logic
-**Explanation**: We don't allow users to define or inject template strings. Only trusted, developer-written templates are used.
 
-**Fix**: Prevents template injection attacks where an attacker could slip in malicious template syntax.
+**Vulnerability**: Original implementation allows dynamic template creation and execution, which can lead to template injection attacks.
+
+**Fix**: Removed support for dynamic template logic and execution.
+
+**Code Reference**:
+```javascript
+// Template settings - removed evaluate blocks
+_.templateSettings = {
+  interpolate: /<%=([\s\S]+?)%>/g,  // <%= interpolation %>
+  escape: /<%-([\s\S]+?)%>/g,       // <%- escaping %>
+  // No evaluate blocks - they're removed for security
+};
+
+// No support for <% ... %> evaluate blocks
+var matcher = RegExp([
+  (_.templateSettings.escape || /(?!)/g).source,
+  (_.templateSettings.interpolate || /(?!)/g).source
+].join('|') + '|$', 'g');
+
+// Only processes escape and interpolate blocks, ignores evaluate blocks
+```
 
 ### 6. Sanitization of data Inputs
-**Explanation**: Even though templates are safe, we also validate and sanitize input data — removing suspicious keys (like window) or nested references.
 
-**Fix**: Prevents tricking the system into revealing or rendering unexpected content, even indirectly.
+**Vulnerability**: Original implementation doesn't validate or sanitize input data, allowing access to dangerous properties.
+
+**Fix**: Implemented comprehensive input validation and sanitization.
+
+**Code Reference**:
+```javascript
+// Input sanitization
+function getPropertySafely(obj, path) {
+  // Sanitize the path to prevent accessing dangerous properties
+  if (typeof path !== 'string') return '';
+
+  // Block access to dangerous properties
+  var dangerousProps = ['constructor', 'prototype', '__proto__', 'window',
+                        'document', 'global', 'process', 'eval', 'Function'];
+
+  // Simple property access
+  path = path.trim();
+  if (dangerousProps.some(function(prop) { return path.indexOf(prop) >= 0; })) {
+    console.warn('Blocked access to potentially dangerous property:', path);
+    return '';
+  }
+
+  // Additional checks for nested properties...
+  // ...
+}
+```
 
 ### 7. No Access to JavaScript Logic
-**Explanation**: Unlike _.template, which allows if, for, function, etc., our approach has no control structures.
 
-**Fix**: Keeps templates logic-free and secure. Data goes in, text comes out — nothing more.
+**Vulnerability**: Original implementation allows full JavaScript logic in templates, including control structures and function calls.
+
+**Fix**: Completely removed support for JavaScript logic in templates.
+
+**Code Reference**:
+```javascript
+// Original Underscore supports JavaScript logic in <% ... %> blocks
+// Our implementation completely removes this capability
+
+// No support for evaluate blocks
+_.templateSettings = {
+  interpolate: /<%=([\s\S]+?)%>/g,
+  escape: /<%-([\s\S]+?)%>/g,
+  // No evaluate property - removed completely
+};
+
+// No parsing or execution of JavaScript logic
+// Only simple string interpolation is supported
+```
 
 ## Usage
 

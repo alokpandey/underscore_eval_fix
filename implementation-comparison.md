@@ -1,9 +1,39 @@
 # Underscore.js Template Security Implementations Comparison
 
-This document compares the two different approaches to securing Underscore.js templates:
+This document compares the three different implementations of Underscore.js templates:
 
-1. **Underscore Fix** (`underscore_fix.js`): A safer implementation that uses a custom interpreter
-2. **Underscore Pure** (`underscore_pure.js`): A pure string interpolation implementation with no code execution
+1. **Original Underscore** (unsafe): The original implementation that uses `new Function()`
+2. **Underscore Fix** (`underscore_fix.js`): A safer implementation that uses a custom interpreter
+3. **Underscore Pure** (`underscore_pure.js`): A pure string interpolation implementation with no code execution
+
+## Original Implementation (Unsafe)
+
+The original Underscore.js template implementation compiles templates into JavaScript functions using the `Function` constructor (similar to `eval`):
+
+```javascript
+// Original Underscore.js implementation (simplified)
+_.template = function(text) {
+  // ...
+  var source = "var __t,__p='',__j=Array.prototype.join," +
+    "print=function(){__p+=__j.call(arguments,'');};\n" +
+    source + 'return __p;\n';
+
+  var render = new Function(argument, '_', source);
+
+  var template = function(data) {
+    return render.call(this, data, _);
+  };
+
+  return template;
+};
+```
+
+This implementation has several security vulnerabilities:
+- Uses `new Function()` to compile templates (similar to eval)
+- Allows arbitrary JavaScript execution
+- Has no sandboxing or isolation
+- Provides access to global objects
+- Has limited XSS protection
 
 ## Security Approach Comparison
 
