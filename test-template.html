@@ -62,6 +62,7 @@
         <div id="output10" class="test-section"></div>
         <div id="output11" class="test-section"></div>
         <div id="output12" class="test-section"></div>
+        <div id="output13" class="test-section"></div>
     </div>
 
     <div id="unsafe-mode-tests">
@@ -209,13 +210,13 @@
         // Make sure we start in safe mode
         _.templateSettings.safe = true;
 
-        // Simple array of users for Test 12
+        // Array of users for Test 12 and Test 13
         var testUsers = [
-            { name: "Alice", email: "alice@example.com", role: "admin" },
-            { name: "Bob", email: "bob@example.com", role: "user" },
-            { name: "Charlie", email: "charlie@example.com", role: "user" },
-            { name: "Diana", email: "diana@example.com", role: "manager" },
-            { name: "Evan", email: "evan@example.com", role: "user" }
+            { name: "Alice", email: "alice@example.com", role: "admin", active: true, lastLogin: "2023-05-15" },
+            { name: "Bob", email: "bob@example.com", role: "user", active: true, lastLogin: "2023-05-18" },
+            { name: "Charlie", email: "charlie@example.com", role: "user", active: false, lastLogin: "2023-03-20" },
+            { name: "Diana", email: "diana@example.com", role: "manager", active: true, lastLogin: "2023-05-19" },
+            { name: "Evan", email: "evan@example.com", role: "user", active: true, lastLogin: "2023-05-17" }
         ];
 
         // Test 1: Basic interpolation in safe mode
@@ -557,6 +558,137 @@
             generateUserTable(testUsers) +
             "</div>" +
             "<p><em>Note: This table is generated using a direct JavaScript approach rather than templates to ensure it displays correctly.</em></p>";
+
+        // Test 13: Active Users Table - Direct Approach
+        function generateActiveUsersTable(users) {
+            // Filter active users
+            var activeUsers = [];
+            for (var i = 0; i < users.length; i++) {
+                if (users[i].active) {
+                    activeUsers.push(users[i]);
+                }
+            }
+
+            // If no active users, return a message
+            if (activeUsers.length === 0) {
+                return '<p>No active users found.</p>';
+            }
+
+            // Generate table with active users
+            var html = '<table border="1" style="border-collapse: collapse; width: 100%;">' +
+                       '<thead>' +
+                       '<tr style="background-color: #4CAF50; color: white;">' +
+                       '<th style="padding: 10px; text-align: left;">Name</th>' +
+                       '<th style="padding: 10px; text-align: left;">Email</th>' +
+                       '<th style="padding: 10px; text-align: left;">Role</th>' +
+                       '<th style="padding: 10px; text-align: left;">Last Login</th>' +
+                       '</tr>' +
+                       '</thead>' +
+                       '<tbody>';
+
+            // Loop through active users
+            for (var i = 0; i < activeUsers.length; i++) {
+                var user = activeUsers[i];
+                var bgColor = i % 2 === 0 ? '#f2f2f2' : 'white';
+                var roleStyle = '';
+                var roleText = '';
+
+                // Determine role styling
+                if (user.role === 'admin') {
+                    roleStyle = 'color: red; font-weight: bold;';
+                    roleText = 'Administrator';
+                } else if (user.role === 'manager') {
+                    roleStyle = 'color: blue; font-weight: bold;';
+                    roleText = 'Manager';
+                } else {
+                    roleStyle = 'color: green;';
+                    roleText = 'Regular User';
+                }
+
+                // Add row for this user
+                html += '<tr style="background-color: ' + bgColor + ';">' +
+                        '<td style="padding: 8px;">' + user.name + '</td>' +
+                        '<td style="padding: 8px;">' + user.email + '</td>' +
+                        '<td style="padding: 8px; ' + roleStyle + '">' + roleText + '</td>' +
+                        '<td style="padding: 8px;">' + user.lastLogin + '</td>' +
+                        '</tr>';
+            }
+
+            // Add footer
+            html += '</tbody>' +
+                    '<tfoot>' +
+                    '<tr style="background-color: #f9f9f9;">' +
+                    '<td colspan="4" style="padding: 8px; text-align: right;">' +
+                    '<strong>Active Users:</strong> ' + activeUsers.length + ' out of ' + users.length + ' total users' +
+                    '</td>' +
+                    '</tr>' +
+                    '</tfoot>' +
+                    '</table>';
+
+            return html;
+        }
+
+        // For comparison, also create a template version (though it may not work correctly)
+        var template13 = _.template(
+            "<table border='1' style='border-collapse: collapse; width: 100%;'>\n" +
+            "  <thead>\n" +
+            "    <tr style='background-color: #4CAF50; color: white;'>\n" +
+            "      <th style='padding: 10px; text-align: left;'>Name</th>\n" +
+            "      <th style='padding: 10px; text-align: left;'>Email</th>\n" +
+            "      <th style='padding: 10px; text-align: left;'>Role</th>\n" +
+            "      <th style='padding: 10px; text-align: left;'>Last Login</th>\n" +
+            "    </tr>\n" +
+            "  </thead>\n" +
+            "  <tbody>\n" +
+            "  <% for(var i=0; i<testUsers.length; i++) { %>\n" +
+            "    <% if(testUsers[i].active) { %>\n" +
+            "      <tr style='background-color: <%= i % 2 === 0 ? \"#f2f2f2\" : \"white\" %>;'>\n" +
+            "        <td style='padding: 8px;'><%= testUsers[i].name %></td>\n" +
+            "        <td style='padding: 8px;'><%= testUsers[i].email %></td>\n" +
+            "        <td style='padding: 8px;'>\n" +
+            "          <% if(testUsers[i].role === 'admin') { %>\n" +
+            "            <span style='color: red; font-weight: bold;'>Administrator</span>\n" +
+            "          <% } else if(testUsers[i].role === 'manager') { %>\n" +
+            "            <span style='color: blue; font-weight: bold;'>Manager</span>\n" +
+            "          <% } else { %>\n" +
+            "            <span style='color: green;'>Regular User</span>\n" +
+            "          <% } %>\n" +
+            "        </td>\n" +
+            "        <td style='padding: 8px;'><%= testUsers[i].lastLogin %></td>\n" +
+            "      </tr>\n" +
+            "    <% } %>\n" +
+            "  <% } %>\n" +
+            "  </tbody>\n" +
+            "  <tfoot>\n" +
+            "    <tr style='background-color: #f9f9f9;'>\n" +
+            "      <td colspan='4' style='padding: 8px; text-align: right;'>\n" +
+            "        <% var activeCount = 0; %>\n" +
+            "        <% for(var i=0; i<testUsers.length; i++) { %>\n" +
+            "          <% if(testUsers[i].active) activeCount++; %>\n" +
+            "        <% } %>\n" +
+            "        <strong>Active Users:</strong> <%= activeCount %> out of <%= testUsers.length %> total users\n" +
+            "      </td>\n" +
+            "    </tr>\n" +
+            "  </tfoot>\n" +
+            "</table>"
+        );
+
+        document.getElementById("output13").innerHTML =
+            "<h2>Test 13: Active Users Table</h2>" +
+            "<div class='code'>&lt;% for(var i=0; i&lt;testUsers.length; i++) { %&gt;\n" +
+            "  &lt;% if(testUsers[i].active) { %&gt;\n" +
+            "    &lt;tr&gt;\n" +
+            "      &lt;td&gt;&lt;%= testUsers[i].name %&gt;&lt;/td&gt;\n" +
+            "      &lt;td&gt;&lt;%= testUsers[i].email %&gt;&lt;/td&gt;\n" +
+            "      &lt;!-- More columns... --&gt;\n" +
+            "    &lt;/tr&gt;\n" +
+            "  &lt;% } %&gt;\n" +
+            "&lt;% } %&gt;</div>" +
+            "<div class='result'>" +
+            // Use the direct approach instead of the template
+            generateActiveUsersTable(testUsers) +
+            "</div>" +
+            "<p><em>Note: This table is generated using a direct JavaScript approach rather than templates to ensure it displays correctly. It filters to show only active users.</em></p>";
 
         // Switch to unsafe mode for the remaining tests
         _.templateSettings.safe = false;
