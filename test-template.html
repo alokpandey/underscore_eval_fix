@@ -55,6 +55,12 @@
         <div id="output5" class="test-section"></div>
         <div id="output6" class="test-section"></div>
         <div id="output7" class="test-section"></div>
+
+        <!-- New tests for enhanced array data -->
+        <div id="output8" class="test-section"></div>
+        <div id="output9" class="test-section"></div>
+        <div id="output10" class="test-section"></div>
+        <div id="output11" class="test-section"></div>
     </div>
 
     <div id="unsafe-mode-tests">
@@ -75,7 +81,52 @@
                 roles: ["admin", "user"]
             },
             numbers: [1, 2, 3, 4, 5],
-            active: true
+            active: true,
+
+            // Enhanced array data for testing loops
+            products: [
+                { id: 1, name: "Laptop", price: 999.99, inStock: true, tags: ["electronics", "computers"] },
+                { id: 2, name: "Smartphone", price: 699.99, inStock: true, tags: ["electronics", "mobile"] },
+                { id: 3, name: "Headphones", price: 199.99, inStock: false, tags: ["electronics", "audio"] },
+                { id: 4, name: "Monitor", price: 349.99, inStock: true, tags: ["electronics", "computers"] },
+                { id: 5, name: "Keyboard", price: 79.99, inStock: true, tags: ["electronics", "accessories"] }
+            ],
+
+            // Array of users for testing nested loops
+            users: [
+                {
+                    name: "Alice",
+                    age: 28,
+                    orders: [
+                        { id: 101, total: 125.50, items: 3 },
+                        { id: 102, total: 89.99, items: 1 }
+                    ]
+                },
+                {
+                    name: "Bob",
+                    age: 34,
+                    orders: [
+                        { id: 103, total: 299.99, items: 2 }
+                    ]
+                },
+                {
+                    name: "Charlie",
+                    age: 41,
+                    orders: []
+                }
+            ],
+
+            // Simple array of numbers for math operations
+            scores: [85, 92, 78, 96, 88, 76],
+
+            // Array for filtering examples
+            tasks: [
+                { id: 1, title: "Complete project", done: false, priority: "high" },
+                { id: 2, title: "Buy groceries", done: true, priority: "medium" },
+                { id: 3, title: "Call doctor", done: false, priority: "high" },
+                { id: 4, title: "Read book", done: false, priority: "low" },
+                { id: 5, title: "Clean house", done: true, priority: "medium" }
+            ]
         };
 
         // Make sure we start in safe mode
@@ -154,6 +205,159 @@
             "&lt;% } %&gt;\n" +
             "&lt;%= sum %&gt;</div>" +
             "<div class='result'>" + template7(data) + "</div>";
+
+        // Test 8: Product list with for loop and conditional formatting
+        var template8 = _.template(
+            "<table border='1' style='border-collapse: collapse; width: 100%;'>\n" +
+            "  <tr style='background-color: #f2f2f2;'>\n" +
+            "    <th style='padding: 8px; text-align: left;'>ID</th>\n" +
+            "    <th style='padding: 8px; text-align: left;'>Product</th>\n" +
+            "    <th style='padding: 8px; text-align: left;'>Price</th>\n" +
+            "    <th style='padding: 8px; text-align: left;'>Status</th>\n" +
+            "  </tr>\n" +
+            "<% for(var i=0; i<products.length; i++) { %>\n" +
+            "  <tr<% if (!products[i].inStock) { %> style='background-color: #ffeeee;'<% } %>>\n" +
+            "    <td style='padding: 8px;'><%= products[i].id %></td>\n" +
+            "    <td style='padding: 8px;'><%= products[i].name %></td>\n" +
+            "    <td style='padding: 8px;'>$<%= products[i].price.toFixed(2) %></td>\n" +
+            "    <td style='padding: 8px;'><% if (products[i].inStock) { %><span style='color: green;'>In Stock</span><% } else { %><span style='color: red;'>Out of Stock</span><% } %></td>\n" +
+            "  </tr>\n" +
+            "<% } %>\n" +
+            "</table>"
+        );
+        document.getElementById("output8").innerHTML =
+            "<h2>Test 8: Product List with For Loop and Conditional Formatting</h2>" +
+            "<div class='code'>&lt;% for(var i=0; i&lt;products.length; i++) { %&gt;\n" +
+            "  &lt;tr&lt;% if (!products[i].inStock) { %&gt; style='background-color: #ffeeee;'&lt;% } %&gt;&gt;\n" +
+            "    &lt;td&gt;&lt;%= products[i].id %&gt;&lt;/td&gt;\n" +
+            "    &lt;td&gt;&lt;%= products[i].name %&gt;&lt;/td&gt;\n" +
+            "    &lt;td&gt;$&lt;%= products[i].price.toFixed(2) %&gt;&lt;/td&gt;\n" +
+            "    &lt;td&gt;&lt;% if (products[i].inStock) { %&gt;In Stock&lt;% } else { %&gt;Out of Stock&lt;% } %&gt;&lt;/td&gt;\n" +
+            "  &lt;/tr&gt;\n" +
+            "&lt;% } %&gt;</div>" +
+            "<div class='result'>" + template8(data) + "</div>";
+
+        // Test 9: Nested loops with user orders
+        var template9 = _.template(
+            "<div style='font-family: Arial, sans-serif;'>\n" +
+            "<% for(var i=0; i<users.length; i++) { %>\n" +
+            "  <div style='margin-bottom: 20px; padding: 10px; border: 1px solid #ddd; border-radius: 5px;'>\n" +
+            "    <h3 style='margin-top: 0;'><%= users[i].name %> (Age: <%= users[i].age %>)</h3>\n" +
+            "    <% if(users[i].orders.length > 0) { %>\n" +
+            "      <p>Order History:</p>\n" +
+            "      <ul>\n" +
+            "      <% for(var j=0; j<users[i].orders.length; j++) { %>\n" +
+            "        <li>Order #<%= users[i].orders[j].id %>: $<%= users[i].orders[j].total.toFixed(2) %> (<%= users[i].orders[j].items %> items)</li>\n" +
+            "      <% } %>\n" +
+            "      </ul>\n" +
+            "    <% } else { %>\n" +
+            "      <p>No order history</p>\n" +
+            "    <% } %>\n" +
+            "  </div>\n" +
+            "<% } %>\n" +
+            "</div>"
+        );
+        document.getElementById("output9").innerHTML =
+            "<h2>Test 9: Nested Loops with User Orders</h2>" +
+            "<div class='code'>&lt;% for(var i=0; i&lt;users.length; i++) { %&gt;\n" +
+            "  &lt;div&gt;\n" +
+            "    &lt;h3&gt;&lt;%= users[i].name %&gt; (Age: &lt;%= users[i].age %&gt;)&lt;/h3&gt;\n" +
+            "    &lt;% if(users[i].orders.length > 0) { %&gt;\n" +
+            "      &lt;p&gt;Order History:&lt;/p&gt;\n" +
+            "      &lt;ul&gt;\n" +
+            "      &lt;% for(var j=0; j&lt;users[i].orders.length; j++) { %&gt;\n" +
+            "        &lt;li&gt;Order #&lt;%= users[i].orders[j].id %&gt;: $&lt;%= users[i].orders[j].total %&gt;&lt;/li&gt;\n" +
+            "      &lt;% } %&gt;\n" +
+            "      &lt;/ul&gt;\n" +
+            "    &lt;% } else { %&gt;\n" +
+            "      &lt;p&gt;No order history&lt;/p&gt;\n" +
+            "    &lt;% } %&gt;\n" +
+            "  &lt;/div&gt;\n" +
+            "&lt;% } %&gt;</div>" +
+            "<div class='result'>" + template9(data) + "</div>";
+
+        // Test 10: Math operations with array data
+        var template10 = _.template(
+            "<% var total = 0; %>\n" +
+            "<% var max = scores[0]; %>\n" +
+            "<% var min = scores[0]; %>\n" +
+            "<% for(var i=0; i<scores.length; i++) { %>\n" +
+            "<%   total += scores[i]; %>\n" +
+            "<%   if(scores[i] > max) max = scores[i]; %>\n" +
+            "<%   if(scores[i] < min) min = scores[i]; %>\n" +
+            "<% } %>\n" +
+            "<% var avg = total / scores.length; %>\n" +
+            "<div style='font-family: Arial, sans-serif; padding: 10px; background-color: #f9f9f9; border-radius: 5px;'>\n" +
+            "  <p><strong>Test Scores Analysis:</strong></p>\n" +
+            "  <ul>\n" +
+            "    <li>Scores: <%= scores.join(', ') %></li>\n" +
+            "    <li>Total: <%= total %></li>\n" +
+            "    <li>Average: <%= avg.toFixed(2) %></li>\n" +
+            "    <li>Highest: <%= max %></li>\n" +
+            "    <li>Lowest: <%= min %></li>\n" +
+            "  </ul>\n" +
+            "</div>"
+        );
+        document.getElementById("output10").innerHTML =
+            "<h2>Test 10: Math Operations with Array Data</h2>" +
+            "<div class='code'>&lt;% var total = 0; %&gt;\n" +
+            "&lt;% var max = scores[0]; %&gt;\n" +
+            "&lt;% var min = scores[0]; %&gt;\n" +
+            "&lt;% for(var i=0; i&lt;scores.length; i++) { %&gt;\n" +
+            "&lt;%   total += scores[i]; %&gt;\n" +
+            "&lt;%   if(scores[i] > max) max = scores[i]; %&gt;\n" +
+            "&lt;%   if(scores[i] < min) min = scores[i]; %&gt;\n" +
+            "&lt;% } %&gt;\n" +
+            "&lt;% var avg = total / scores.length; %&gt;</div>" +
+            "<div class='result'>" + template10(data) + "</div>";
+
+        // Test 11: Filtering and conditional logic
+        var template11 = _.template(
+            "<div style='font-family: Arial, sans-serif;'>\n" +
+            "  <h3>Task List</h3>\n" +
+            "  \n" +
+            "  <h4>High Priority Tasks:</h4>\n" +
+            "  <ul>\n" +
+            "  <% for(var i=0; i<tasks.length; i++) { %>\n" +
+            "    <% if(tasks[i].priority === 'high') { %>\n" +
+            "      <li style='color: <%= tasks[i].done ? \"green\" : \"red\" %>;'>\n" +
+            "        <%= tasks[i].title %> - <%= tasks[i].done ? \"Completed\" : \"Pending\" %>\n" +
+            "      </li>\n" +
+            "    <% } %>\n" +
+            "  <% } %>\n" +
+            "  </ul>\n" +
+            "  \n" +
+            "  <h4>Other Tasks:</h4>\n" +
+            "  <ul>\n" +
+            "  <% for(var i=0; i<tasks.length; i++) { %>\n" +
+            "    <% if(tasks[i].priority !== 'high') { %>\n" +
+            "      <li style='color: <%= tasks[i].done ? \"green\" : \"orange\" %>;'>\n" +
+            "        <%= tasks[i].title %> - <%= tasks[i].done ? \"Completed\" : \"Pending\" %>\n" +
+            "        (<%= tasks[i].priority %> priority)\n" +
+            "      </li>\n" +
+            "    <% } %>\n" +
+            "  <% } %>\n" +
+            "  </ul>\n" +
+            "  \n" +
+            "  <p><strong>Summary:</strong> \n" +
+            "  <% var completed = 0; %>\n" +
+            "  <% for(var i=0; i<tasks.length; i++) { %>\n" +
+            "    <% if(tasks[i].done) completed++; %>\n" +
+            "  <% } %>\n" +
+            "  <%= completed %> of <%= tasks.length %> tasks completed\n" +
+            "  (<%= Math.round((completed / tasks.length) * 100) %>%)</p>\n" +
+            "</div>"
+        );
+        document.getElementById("output11").innerHTML =
+            "<h2>Test 11: Filtering and Conditional Logic</h2>" +
+            "<div class='code'>&lt;% for(var i=0; i&lt;tasks.length; i++) { %&gt;\n" +
+            "  &lt;% if(tasks[i].priority === 'high') { %&gt;\n" +
+            "    &lt;li style='color: &lt;%= tasks[i].done ? \"green\" : \"red\" %&gt;'&gt;\n" +
+            "      &lt;%= tasks[i].title %&gt; - &lt;%= tasks[i].done ? \"Completed\" : \"Pending\" %&gt;\n" +
+            "    &lt;/li&gt;\n" +
+            "  &lt;% } %&gt;\n" +
+            "&lt;% } %&gt;</div>" +
+            "<div class='result'>" + template11(data) + "</div>";
 
         // Switch to unsafe mode for the remaining tests
         _.templateSettings.safe = false;
