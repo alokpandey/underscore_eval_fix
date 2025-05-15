@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Debug For Loop</title>
+    <script src="underscore_fix.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        .debug {
+            background-color: #f8f8f8;
+            border: 1px solid #ddd;
+            padding: 10px;
+            margin: 10px 0;
+            white-space: pre-wrap;
+            font-family: monospace;
+        }
+        .result {
+            background-color: #e8f5e9;
+            border: 1px solid #a5d6a7;
+            padding: 10px;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>Debug For Loop</h1>
+    
+    <h2>Test Data:</h2>
+    <div id="testData" class="debug"></div>
+    
+    <h2>Template Code:</h2>
+    <div id="templateCode" class="debug"></div>
+    
+    <h2>Result:</h2>
+    <div id="result" class="result"></div>
+    
+    <h2>Debug Log:</h2>
+    <div id="debugLog" class="debug"></div>
+    
+    <script>
+        // Override console.log to capture debug info
+        var originalConsoleLog = console.log;
+        var originalConsoleWarn = console.warn;
+        var debugLog = [];
+        
+        console.log = function() {
+            debugLog.push(Array.from(arguments).join(' '));
+            document.getElementById('debugLog').textContent = debugLog.join('\n');
+            originalConsoleLog.apply(console, arguments);
+        };
+        
+        console.warn = function() {
+            debugLog.push('WARNING: ' + Array.from(arguments).join(' '));
+            document.getElementById('debugLog').textContent = debugLog.join('\n');
+            originalConsoleWarn.apply(console, arguments);
+        };
+        
+        // Simple test data
+        var testData = {
+            users: [
+                { name: "Alice", email: "alice@example.com" },
+                { name: "Bob", email: "bob@example.com" },
+                { name: "Charlie", email: "charlie@example.com" }
+            ]
+        };
+        
+        // Display test data
+        document.getElementById('testData').textContent = JSON.stringify(testData, null, 2);
+        
+        // Make sure we're in safe mode
+        _.templateSettings.safe = true;
+        
+        // Create a very simple template with a for loop
+        var templateCode = `
+<table border="1">
+  <tr>
+    <th>Name</th>
+    <th>Email</th>
+  </tr>
+  <% for(var i=0; i<users.length; i++) { %>
+    <tr>
+      <td><%= users[i].name %></td>
+      <td><%= users[i].email %></td>
+    </tr>
+  <% } %>
+</table>
+`;
+        
+        // Display template code
+        document.getElementById('templateCode').textContent = templateCode;
+        
+        // Add debug logging to underscore's safeEval function
+        console.log("Creating template...");
+        var template = _.template(templateCode);
+        console.log("Template created");
+        
+        // Render the template with detailed logging
+        console.log("Rendering template with data:", JSON.stringify(testData));
+        try {
+            var rendered = template(testData);
+            console.log("Template rendered successfully");
+            document.getElementById('result').innerHTML = rendered;
+        } catch (e) {
+            console.log("Error rendering template:", e.message);
+            document.getElementById('result').innerHTML = "<strong>Error:</strong> " + e.message;
+        }
+        
+        // Add a direct test of the for loop functionality
+        console.log("\nDirect test of for loop:");
+        try {
+            var directTest = _.template("<% for(var i=0; i<3; i++) { %><%= i %>,<% } %>");
+            var directResult = directTest({});
+            console.log("Direct for loop test result:", directResult);
+        } catch (e) {
+            console.log("Error in direct for loop test:", e.message);
+        }
+    </script>
+</body>
+</html>

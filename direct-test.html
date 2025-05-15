@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Direct Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        table {
+            border-collapse: collapse;
+            width: 100%;
+            margin-top: 20px;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        th {
+            background-color: #4CAF50;
+            color: white;
+        }
+        tr:nth-child(even) {
+            background-color: #f2f2f2;
+        }
+    </style>
+</head>
+<body>
+    <h1>Direct Test</h1>
+    
+    <div id="output"></div>
+    
+    <script>
+        // Simple array of users
+        var users = [
+            { name: "Alice", email: "alice@example.com", role: "admin" },
+            { name: "Bob", email: "bob@example.com", role: "user" },
+            { name: "Charlie", email: "charlie@example.com", role: "user" },
+            { name: "Diana", email: "diana@example.com", role: "manager" },
+            { name: "Evan", email: "evan@example.com", role: "user" }
+        ];
+        
+        // Generate HTML directly without using templates
+        var html = '<table>' +
+                   '<tr>' +
+                   '<th>Name</th>' +
+                   '<th>Email</th>' +
+                   '<th>Role</th>' +
+                   '</tr>';
+        
+        // Loop through users
+        for (var i = 0; i < users.length; i++) {
+            var user = users[i];
+            var roleStyle = '';
+            var roleText = '';
+            
+            // Determine role styling
+            if (user.role === 'admin') {
+                roleStyle = 'color: red; font-weight: bold;';
+                roleText = 'Administrator';
+            } else if (user.role === 'manager') {
+                roleStyle = 'color: blue; font-weight: bold;';
+                roleText = 'Manager';
+            } else {
+                roleStyle = 'color: green;';
+                roleText = 'Regular User';
+            }
+            
+            // Add row for this user
+            html += '<tr>' +
+                    '<td>' + user.name + '</td>' +
+                    '<td>' + user.email + '</td>' +
+                    '<td style="' + roleStyle + '">' + roleText + '</td>' +
+                    '</tr>';
+        }
+        
+        // Close the table
+        html += '</table>';
+        
+        // Display the result
+        document.getElementById('output').innerHTML = html;
+    </script>
+</body>
+</html>

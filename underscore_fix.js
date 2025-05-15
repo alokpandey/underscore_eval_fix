@@ -968,6 +968,7 @@
 
       // This is our safe template renderer function
       var template = function(data) {
+        console.log("Template called with data:", data);
         data = data || {};
         var _ = _$1;
         var result = '';
@@ -975,7 +976,9 @@
         var index = 0;
 
         // First pass: collect all matches and their positions
+        console.log("Collecting template matches");
         text.replace(matcher, function(match, escape, interpolate, evaluate, offset) {
+          console.log("Found match:", { match, escape, interpolate, evaluate, offset });
           matches.push({
             match: match,
             escape: escape,
@@ -988,29 +991,37 @@
         });
 
         // Second pass: process the template
+        console.log("Processing template with", matches.length, "matches");
         for (var i = 0; i < matches.length; i++) {
           var m = matches[i];
+          console.log("Processing match", i, ":", m);
+
           // Add text before the match
           result += text.slice(index, m.offset);
           index = m.offset + m.length;
 
           // Process the match
           if (m.escape) {
+            console.log("Processing escape block:", m.escape);
             var escapeValue = '';
             try {
               // Safely access nested properties
               escapeValue = getPropertySafely(data, m.escape);
+              console.log("Escape value before escaping:", escapeValue);
               escapeValue = escapeValue == null ? '' : _.escape(escapeValue);
+              console.log("Escape value after escaping:", escapeValue);
             } catch (e) {
               escapeValue = '';
               console.error('Template error in escape expression:', m.escape, e);
             }
             result += escapeValue;
           } else if (m.interpolate) {
+            console.log("Processing interpolate block:", m.interpolate);
             var interpValue = '';
             try {
               // Safely access nested properties
               interpValue = getPropertySafely(data, m.interpolate);
+              console.log("Interpolate value:", interpValue);
               interpValue = interpValue == null ? '' : interpValue;
             } catch (e) {
               interpValue = '';
@@ -1018,6 +1029,7 @@
             }
             result += interpValue;
           } else if (m.evaluate) {
+            console.log("Processing evaluate block:", m.evaluate);
             // For evaluate blocks, we'll use our safe interpreter
             try {
               // Execute the code safely using our interpreter
@@ -1070,6 +1082,9 @@
 
       // Safe evaluation function for template evaluate blocks
       function safeEval(code, data, _) {
+        console.log("safeEval called with code:", code);
+        console.log("data:", data);
+
         // Create a sandboxed environment with limited capabilities
         var sandbox = Object.create(null);
 
@@ -1102,18 +1117,28 @@
         };
 
         // Copy all properties from data to sandbox
-        for (var key in data) {
-          if (data.hasOwnProperty(key)) {
-            sandbox[key] = data[key];
+        console.log("Copying data properties to sandbox");
+        if (data && typeof data === 'object') {
+          for (var key in data) {
+            if (data.hasOwnProperty(key)) {
+              console.log("Copying property:", key, "=", data[key]);
+              sandbox[key] = data[key];
+            }
           }
+        } else {
+          console.warn("Data is not an object:", data);
         }
 
         // Copy all safe globals to sandbox
+        console.log("Copying safe globals to sandbox");
         for (var key in safeGlobals) {
           if (safeGlobals.hasOwnProperty(key)) {
+            console.log("Copying global:", key);
             sandbox[key] = safeGlobals[key];
           }
         }
+
+        console.log("Sandbox keys:", Object.keys(sandbox));
 
         // Parse and execute common template operations
 
@@ -1122,20 +1147,56 @@
         var forLoopMatch = code.match(forLoopRegex);
 
         if (forLoopMatch) {
+          console.log("FOR LOOP MATCH:", forLoopMatch);
+
           var loopVar = forLoopMatch[1];
-          var startVal = evaluateSimpleExpression(forLoopMatch[2], sandbox);
-          var endVal = evaluateSimpleExpression(forLoopMatch[3], sandbox);
+          console.log("Loop variable:", loopVar);
+
+          var startExpr = forLoopMatch[2];
+          console.log("Start expression:", startExpr);
+          var startVal = evaluateSimpleExpression(startExpr, sandbox);
+          console.log("Start value:", startVal);
+
+          var endExpr = forLoopMatch[3];
+          console.log("End expression:", endExpr);
+          var endVal = evaluateSimpleExpression(endExpr, sandbox);
+          console.log("End value:", endVal);
+
           var loopBody = forLoopMatch[4];
+          console.log("Loop body:", loopBody);
+
+          // Check if endVal is a valid number
+          if (typeof endVal !== 'number' || isNaN(endVal)) {
+            console.warn("Invalid end value for loop:", endVal);
+            console.warn("End expression was:", endExpr);
+            console.warn("Sandbox keys:", Object.keys(sandbox));
+
+            // Try to handle common case of array.length
+            if (endExpr.indexOf('.length') > 0) {
+              var arrayName = endExpr.split('.')[0];
+              console.log("Array name:", arrayName);
+              if (sandbox[arrayName] && Array.isArray(sandbox[arrayName])) {
+                endVal = sandbox[arrayName].length;
+                console.log("Using array length instead:", endVal);
+              }
+            }
+          }
+
+          console.log("Running for loop from", startVal, "to", endVal);
 
           for (var i = startVal; i < endVal; i++) {
+            console.log("Loop iteration:", i);
+
             // Create a new scope for each iteration
             var iterationScope = Object.create(sandbox);
             iterationScope[loopVar] = i;
 
             // Execute the loop body
+            console.log("Executing loop body with", loopVar, "=", i);
             executeStatements(loopBody, iterationScope);
           }
 
+          console.log("For loop complete");
           return;
         }
 
@@ -1249,11 +1310,29 @@
         // Handle array/object property access (e.g., items.length)
         var dotParts = expr.split('.');
         if (dotParts.length > 1) {
+          console.log("Evaluating property access:", expr);
+          console.log("Base object name:", dotParts[0]);
+          console.log("Scope keys:", Object.keys(scope));
+
           var obj = scope[dotParts[0]];
-          for (var i = 1; i < dotParts.length; i++) {
-            if (obj == null) return undefined;
-            obj = obj[dotParts[i]];
+          console.log("Base object value:", obj);
+
+          if (obj == null) {
+            console.warn("Base object is null or undefined:", dotParts[0]);
+            return undefined;
           }
+
+          for (var i = 1; i < dotParts.length; i++) {
+            console.log("Accessing property:", dotParts[i]);
+            if (obj == null) {
+              console.warn("Object is null or undefined when accessing:", dotParts[i]);
+              return undefined;
+            }
+            obj = obj[dotParts[i]];
+            console.log("Property value:", obj);
+          }
+
+          console.log("Final property value:", obj);
           return obj;
         }
 
@@ -1331,7 +1410,7 @@
         for (var i = 0; i < statements.length; i++) {
           var stmt = statements[i].trim();
           if (stmt) {
-            safeEval(stmt + ';', data, _);
+            safeEval(stmt + ';', scope, _);
           }
         }
       }
