@@ -61,6 +61,7 @@
         <div id="output9" class="test-section"></div>
         <div id="output10" class="test-section"></div>
         <div id="output11" class="test-section"></div>
+        <div id="output12" class="test-section"></div>
     </div>
 
     <div id="unsafe-mode-tests">
@@ -97,22 +98,98 @@
                 {
                     name: "Alice",
                     age: 28,
+                    email: "alice@example.com",
+                    role: "admin",
+                    active: true,
+                    lastLogin: "2023-05-15",
+                    preferences: {
+                        theme: "dark",
+                        notifications: true,
+                        language: "en-US"
+                    },
                     orders: [
-                        { id: 101, total: 125.50, items: 3 },
-                        { id: 102, total: 89.99, items: 1 }
+                        { id: 101, total: 125.50, items: 3, date: "2023-04-10", status: "delivered" },
+                        { id: 102, total: 89.99, items: 1, date: "2023-05-05", status: "delivered" }
+                    ],
+                    addresses: [
+                        { type: "home", street: "123 Main St", city: "Boston", state: "MA", zip: "02108" },
+                        { type: "work", street: "456 Market St", city: "Boston", state: "MA", zip: "02109" }
                     ]
                 },
                 {
                     name: "Bob",
                     age: 34,
+                    email: "bob@example.com",
+                    role: "user",
+                    active: true,
+                    lastLogin: "2023-05-18",
+                    preferences: {
+                        theme: "light",
+                        notifications: false,
+                        language: "en-US"
+                    },
                     orders: [
-                        { id: 103, total: 299.99, items: 2 }
+                        { id: 103, total: 299.99, items: 2, date: "2023-05-12", status: "shipped" }
+                    ],
+                    addresses: [
+                        { type: "home", street: "789 Oak Dr", city: "Chicago", state: "IL", zip: "60601" }
                     ]
                 },
                 {
                     name: "Charlie",
                     age: 41,
-                    orders: []
+                    email: "charlie@example.com",
+                    role: "user",
+                    active: false,
+                    lastLogin: "2023-03-20",
+                    preferences: {
+                        theme: "light",
+                        notifications: true,
+                        language: "fr-FR"
+                    },
+                    orders: [],
+                    addresses: [
+                        { type: "home", street: "101 Pine Ave", city: "Seattle", state: "WA", zip: "98101" }
+                    ]
+                },
+                {
+                    name: "Diana",
+                    age: 25,
+                    email: "diana@example.com",
+                    role: "manager",
+                    active: true,
+                    lastLogin: "2023-05-19",
+                    preferences: {
+                        theme: "auto",
+                        notifications: true,
+                        language: "en-GB"
+                    },
+                    orders: [
+                        { id: 104, total: 149.95, items: 4, date: "2023-04-22", status: "delivered" },
+                        { id: 105, total: 49.99, items: 1, date: "2023-05-10", status: "delivered" },
+                        { id: 106, total: 89.97, items: 3, date: "2023-05-18", status: "processing" }
+                    ],
+                    addresses: [
+                        { type: "home", street: "222 Elm St", city: "New York", state: "NY", zip: "10001" },
+                        { type: "work", street: "333 Madison Ave", city: "New York", state: "NY", zip: "10017" }
+                    ]
+                },
+                {
+                    name: "Evan",
+                    age: 38,
+                    email: "evan@example.com",
+                    role: "user",
+                    active: true,
+                    lastLogin: "2023-05-17",
+                    preferences: {
+                        theme: "light",
+                        notifications: false,
+                        language: "es-ES"
+                    },
+                    orders: [
+                        { id: 107, total: 199.99, items: 1, date: "2023-05-15", status: "shipped" }
+                    ],
+                    addresses: []
                 }
             ],
 
@@ -358,6 +435,108 @@
             "  &lt;% } %&gt;\n" +
             "&lt;% } %&gt;</div>" +
             "<div class='result'>" + template11(data) + "</div>";
+
+        // Test 12: User Directory Table
+        var template12 = _.template(
+            "<table border='1' style='border-collapse: collapse; width: 100%;'>\n" +
+            "  <thead>\n" +
+            "    <tr style='background-color: #4CAF50; color: white;'>\n" +
+            "      <th style='padding: 10px; text-align: left;'>Name</th>\n" +
+            "      <th style='padding: 10px; text-align: left;'>Email</th>\n" +
+            "      <th style='padding: 10px; text-align: left;'>Role</th>\n" +
+            "      <th style='padding: 10px; text-align: left;'>Status</th>\n" +
+            "      <th style='padding: 10px; text-align: left;'>Last Login</th>\n" +
+            "      <th style='padding: 10px; text-align: left;'>Orders</th>\n" +
+            "      <th style='padding: 10px; text-align: left;'>Addresses</th>\n" +
+            "    </tr>\n" +
+            "  </thead>\n" +
+            "  <tbody>\n" +
+            "  <% for(var i=0; i<users.length; i++) { %>\n" +
+            "    <tr style='background-color: <%= i % 2 === 0 ? \"#f2f2f2\" : \"white\" %>;'>\n" +
+            "      <td style='padding: 8px;'><%= users[i].name %></td>\n" +
+            "      <td style='padding: 8px;'><%= users[i].email %></td>\n" +
+            "      <td style='padding: 8px;'>\n" +
+            "        <% if(users[i].role === 'admin') { %>\n" +
+            "          <span style='color: red; font-weight: bold;'>Administrator</span>\n" +
+            "        <% } else if(users[i].role === 'manager') { %>\n" +
+            "          <span style='color: blue; font-weight: bold;'>Manager</span>\n" +
+            "        <% } else { %>\n" +
+            "          <span>Regular User</span>\n" +
+            "        <% } %>\n" +
+            "      </td>\n" +
+            "      <td style='padding: 8px;'>\n" +
+            "        <% if(users[i].active) { %>\n" +
+            "          <span style='color: green;'>Active</span>\n" +
+            "        <% } else { %>\n" +
+            "          <span style='color: red;'>Inactive</span>\n" +
+            "        <% } %>\n" +
+            "      </td>\n" +
+            "      <td style='padding: 8px;'><%= users[i].lastLogin %></td>\n" +
+            "      <td style='padding: 8px;'>\n" +
+            "        <% if(users[i].orders.length > 0) { %>\n" +
+            "          <%= users[i].orders.length %> orders\n" +
+            "          <ul style='margin: 5px 0; padding-left: 20px;'>\n" +
+            "          <% for(var j=0; j<Math.min(2, users[i].orders.length); j++) { %>\n" +
+            "            <li>Order #<%= users[i].orders[j].id %>: $<%= users[i].orders[j].total.toFixed(2) %> (<%= users[i].orders[j].status %>)</li>\n" +
+            "          <% } %>\n" +
+            "          <% if(users[i].orders.length > 2) { %>\n" +
+            "            <li>... and <%= users[i].orders.length - 2 %> more</li>\n" +
+            "          <% } %>\n" +
+            "          </ul>\n" +
+            "        <% } else { %>\n" +
+            "          No orders\n" +
+            "        <% } %>\n" +
+            "      </td>\n" +
+            "      <td style='padding: 8px;'>\n" +
+            "        <% if(users[i].addresses && users[i].addresses.length > 0) { %>\n" +
+            "          <%= users[i].addresses.length %> addresses\n" +
+            "          <% for(var k=0; k<users[i].addresses.length; k++) { %>\n" +
+            "            <div style='margin-top: 5px;'>\n" +
+            "              <strong><%= users[i].addresses[k].type %>:</strong> \n" +
+            "              <%= users[i].addresses[k].city %>, <%= users[i].addresses[k].state %>\n" +
+            "            </div>\n" +
+            "          <% } %>\n" +
+            "        <% } else { %>\n" +
+            "          No addresses\n" +
+            "        <% } %>\n" +
+            "      </td>\n" +
+            "    </tr>\n" +
+            "  <% } %>\n" +
+            "  </tbody>\n" +
+            "  <tfoot>\n" +
+            "    <tr style='background-color: #f9f9f9;'>\n" +
+            "      <td colspan='7' style='padding: 8px; text-align: right;'>\n" +
+            "        <% var activeUsers = 0; %>\n" +
+            "        <% var totalOrders = 0; %>\n" +
+            "        <% for(var i=0; i<users.length; i++) { %>\n" +
+            "          <% if(users[i].active) activeUsers++; %>\n" +
+            "          <% totalOrders += users[i].orders.length; %>\n" +
+            "        <% } %>\n" +
+            "        <strong>Summary:</strong> <%= users.length %> total users, <%= activeUsers %> active, <%= totalOrders %> total orders\n" +
+            "      </td>\n" +
+            "    </tr>\n" +
+            "  </tfoot>\n" +
+            "</table>"
+        );
+        document.getElementById("output12").innerHTML =
+            "<h2>Test 12: User Directory Table</h2>" +
+            "<div class='code'>&lt;% for(var i=0; i&lt;users.length; i++) { %&gt;\n" +
+            "  &lt;tr&gt;\n" +
+            "    &lt;td&gt;&lt;%= users[i].name %&gt;&lt;/td&gt;\n" +
+            "    &lt;td&gt;&lt;%= users[i].email %&gt;&lt;/td&gt;\n" +
+            "    &lt;td&gt;\n" +
+            "      &lt;% if(users[i].role === 'admin') { %&gt;\n" +
+            "        &lt;span&gt;Administrator&lt;/span&gt;\n" +
+            "      &lt;% } else if(users[i].role === 'manager') { %&gt;\n" +
+            "        &lt;span&gt;Manager&lt;/span&gt;\n" +
+            "      &lt;% } else { %&gt;\n" +
+            "        &lt;span&gt;Regular User&lt;/span&gt;\n" +
+            "      &lt;% } %&gt;\n" +
+            "    &lt;/td&gt;\n" +
+            "    &lt;!-- More columns... --&gt;\n" +
+            "  &lt;/tr&gt;\n" +
+            "&lt;% } %&gt;</div>" +
+            "<div class='result'>" + template12(data) + "</div>";
 
         // Switch to unsafe mode for the remaining tests
         _.templateSettings.safe = false;
