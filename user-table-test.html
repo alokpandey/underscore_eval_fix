@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>User Table Test</title>
+    <script src="underscore_fix.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        th, td {
+            padding: 10px;
+            border: 1px solid #ddd;
+            text-align: left;
+        }
+        th {
+            background-color: #4CAF50;
+            color: white;
+        }
+        tr:nth-child(even) {
+            background-color: #f2f2f2;
+        }
+        .admin {
+            color: red;
+            font-weight: bold;
+        }
+        .manager {
+            color: blue;
+            font-weight: bold;
+        }
+        .user {
+            color: green;
+        }
+    </style>
+</head>
+<body>
+    <h1>User Table Test</h1>
+    <p>This test demonstrates a table with multiple rows, one for each user, showing their name, email, and role.</p>
+
+    <div id="output"></div>
+
+    <script>
+        // Test data - Array of users
+        var users = [
+            {
+                name: "Alice",
+                email: "alice@example.com",
+                role: "admin"
+            },
+            {
+                name: "Bob",
+                email: "bob@example.com",
+                role: "user"
+            },
+            {
+                name: "Charlie",
+                email: "charlie@example.com",
+                role: "user"
+            },
+            {
+                name: "Diana",
+                email: "diana@example.com",
+                role: "manager"
+            },
+            {
+                name: "Evan",
+                email: "evan@example.com",
+                role: "user"
+            }
+        ];
+
+        // Make sure we're in safe mode
+        _.templateSettings.safe = true;
+
+        // Create a template for the user table
+        var userTableTemplate = _.template(`
+            <table>
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Email</th>
+                        <th>Role</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <% for(var i=0; i<users.length; i++) { %>
+                        <tr>
+                            <td><%= users[i].name %></td>
+                            <td><%= users[i].email %></td>
+                            <td>
+                                <% if(users[i].role === 'admin') { %>
+                                    <span class="admin">Administrator</span>
+                                <% } else if(users[i].role === 'manager') { %>
+                                    <span class="manager">Manager</span>
+                                <% } else { %>
+                                    <span class="user">Regular User</span>
+                                <% } %>
+                            </td>
+                        </tr>
+                    <% } %>
+                </tbody>
+                <tfoot>
+                    <tr>
+                        <td colspan="3">Total Users: <%= users.length %></td>
+                    </tr>
+                </tfoot>
+            </table>
+        `);
+
+        // Render the template with the data
+        document.getElementById('output').innerHTML = userTableTemplate({ users: users });
+    </script>
+</body>
+</html>

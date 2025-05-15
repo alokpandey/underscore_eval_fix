@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Simple User Test</title>
+    <script src="underscore_fix.js"></script>
+</head>
+<body>
+    <h1>Simple User Test</h1>
+    <p>Testing basic array iteration with underscore templates</p>
+    
+    <div id="output"></div>
+    
+    <script>
+        // Very simple test data
+        var users = [
+            { name: "Alice", email: "alice@example.com", role: "admin" },
+            { name: "Bob", email: "bob@example.com", role: "user" },
+            { name: "Charlie", email: "charlie@example.com", role: "user" }
+        ];
+        
+        // Make sure we're in safe mode
+        _.templateSettings.safe = true;
+        
+        // Create a very simple template
+        var template = _.template(
+            "<h2>User List</h2>" +
+            "<ul>" +
+            "<% for(var i=0; i<users.length; i++) { %>" +
+            "  <li><strong><%= users[i].name %></strong>: <%= users[i].email %> (<%= users[i].role %>)</li>" +
+            "<% } %>" +
+            "</ul>"
+        );
+        
+        // Render the template with the data
+        document.getElementById('output').innerHTML = template({ users: users });
+        
+        // Also output the raw data to console for debugging
+        console.log("Users array:", users);
+    </script>
+</body>
+</html>

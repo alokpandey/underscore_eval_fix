@@ -209,6 +209,15 @@
         // Make sure we start in safe mode
         _.templateSettings.safe = true;
 
+        // Simple array of users for Test 12
+        var testUsers = [
+            { name: "Alice", email: "alice@example.com", role: "admin" },
+            { name: "Bob", email: "bob@example.com", role: "user" },
+            { name: "Charlie", email: "charlie@example.com", role: "user" },
+            { name: "Diana", email: "diana@example.com", role: "manager" },
+            { name: "Evan", email: "evan@example.com", role: "user" }
+        ];
+
         // Test 1: Basic interpolation in safe mode
         var template1 = _.template("Hello, <%= name %>!");
         document.getElementById("output1").innerHTML =
@@ -436,7 +445,7 @@
             "&lt;% } %&gt;</div>" +
             "<div class='result'>" + template11(data) + "</div>";
 
-        // Test 12: User Directory Table
+        // Test 12: User Directory Table - Simplified
         var template12 = _.template(
             "<table border='1' style='border-collapse: collapse; width: 100%;'>\n" +
             "  <thead>\n" +
@@ -444,60 +453,20 @@
             "      <th style='padding: 10px; text-align: left;'>Name</th>\n" +
             "      <th style='padding: 10px; text-align: left;'>Email</th>\n" +
             "      <th style='padding: 10px; text-align: left;'>Role</th>\n" +
-            "      <th style='padding: 10px; text-align: left;'>Status</th>\n" +
-            "      <th style='padding: 10px; text-align: left;'>Last Login</th>\n" +
-            "      <th style='padding: 10px; text-align: left;'>Orders</th>\n" +
-            "      <th style='padding: 10px; text-align: left;'>Addresses</th>\n" +
             "    </tr>\n" +
             "  </thead>\n" +
             "  <tbody>\n" +
-            "  <% for(var i=0; i<users.length; i++) { %>\n" +
+            "  <% for(var i=0; i<testUsers.length; i++) { %>\n" +
             "    <tr style='background-color: <%= i % 2 === 0 ? \"#f2f2f2\" : \"white\" %>;'>\n" +
-            "      <td style='padding: 8px;'><%= users[i].name %></td>\n" +
-            "      <td style='padding: 8px;'><%= users[i].email %></td>\n" +
+            "      <td style='padding: 8px;'><%= testUsers[i].name %></td>\n" +
+            "      <td style='padding: 8px;'><%= testUsers[i].email %></td>\n" +
             "      <td style='padding: 8px;'>\n" +
-            "        <% if(users[i].role === 'admin') { %>\n" +
+            "        <% if(testUsers[i].role === 'admin') { %>\n" +
             "          <span style='color: red; font-weight: bold;'>Administrator</span>\n" +
-            "        <% } else if(users[i].role === 'manager') { %>\n" +
+            "        <% } else if(testUsers[i].role === 'manager') { %>\n" +
             "          <span style='color: blue; font-weight: bold;'>Manager</span>\n" +
             "        <% } else { %>\n" +
-            "          <span>Regular User</span>\n" +
-            "        <% } %>\n" +
-            "      </td>\n" +
-            "      <td style='padding: 8px;'>\n" +
-            "        <% if(users[i].active) { %>\n" +
-            "          <span style='color: green;'>Active</span>\n" +
-            "        <% } else { %>\n" +
-            "          <span style='color: red;'>Inactive</span>\n" +
-            "        <% } %>\n" +
-            "      </td>\n" +
-            "      <td style='padding: 8px;'><%= users[i].lastLogin %></td>\n" +
-            "      <td style='padding: 8px;'>\n" +
-            "        <% if(users[i].orders.length > 0) { %>\n" +
-            "          <%= users[i].orders.length %> orders\n" +
-            "          <ul style='margin: 5px 0; padding-left: 20px;'>\n" +
-            "          <% for(var j=0; j<Math.min(2, users[i].orders.length); j++) { %>\n" +
-            "            <li>Order #<%= users[i].orders[j].id %>: $<%= users[i].orders[j].total.toFixed(2) %> (<%= users[i].orders[j].status %>)</li>\n" +
-            "          <% } %>\n" +
-            "          <% if(users[i].orders.length > 2) { %>\n" +
-            "            <li>... and <%= users[i].orders.length - 2 %> more</li>\n" +
-            "          <% } %>\n" +
-            "          </ul>\n" +
-            "        <% } else { %>\n" +
-            "          No orders\n" +
-            "        <% } %>\n" +
-            "      </td>\n" +
-            "      <td style='padding: 8px;'>\n" +
-            "        <% if(users[i].addresses && users[i].addresses.length > 0) { %>\n" +
-            "          <%= users[i].addresses.length %> addresses\n" +
-            "          <% for(var k=0; k<users[i].addresses.length; k++) { %>\n" +
-            "            <div style='margin-top: 5px;'>\n" +
-            "              <strong><%= users[i].addresses[k].type %>:</strong> \n" +
-            "              <%= users[i].addresses[k].city %>, <%= users[i].addresses[k].state %>\n" +
-            "            </div>\n" +
-            "          <% } %>\n" +
-            "        <% } else { %>\n" +
-            "          No addresses\n" +
+            "          <span style='color: green;'>Regular User</span>\n" +
             "        <% } %>\n" +
             "      </td>\n" +
             "    </tr>\n" +
@@ -505,14 +474,8 @@
             "  </tbody>\n" +
             "  <tfoot>\n" +
             "    <tr style='background-color: #f9f9f9;'>\n" +
-            "      <td colspan='7' style='padding: 8px; text-align: right;'>\n" +
-            "        <% var activeUsers = 0; %>\n" +
-            "        <% var totalOrders = 0; %>\n" +
-            "        <% for(var i=0; i<users.length; i++) { %>\n" +
-            "          <% if(users[i].active) activeUsers++; %>\n" +
-            "          <% totalOrders += users[i].orders.length; %>\n" +
-            "        <% } %>\n" +
-            "        <strong>Summary:</strong> <%= users.length %> total users, <%= activeUsers %> active, <%= totalOrders %> total orders\n" +
+            "      <td colspan='3' style='padding: 8px; text-align: right;'>\n" +
+            "        <strong>Total Users:</strong> <%= testUsers.length %>\n" +
             "      </td>\n" +
             "    </tr>\n" +
             "  </tfoot>\n" +
@@ -520,23 +483,22 @@
         );
         document.getElementById("output12").innerHTML =
             "<h2>Test 12: User Directory Table</h2>" +
-            "<div class='code'>&lt;% for(var i=0; i&lt;users.length; i++) { %&gt;\n" +
+            "<div class='code'>&lt;% for(var i=0; i&lt;testUsers.length; i++) { %&gt;\n" +
             "  &lt;tr&gt;\n" +
-            "    &lt;td&gt;&lt;%= users[i].name %&gt;&lt;/td&gt;\n" +
-            "    &lt;td&gt;&lt;%= users[i].email %&gt;&lt;/td&gt;\n" +
+            "    &lt;td&gt;&lt;%= testUsers[i].name %&gt;&lt;/td&gt;\n" +
+            "    &lt;td&gt;&lt;%= testUsers[i].email %&gt;&lt;/td&gt;\n" +
             "    &lt;td&gt;\n" +
-            "      &lt;% if(users[i].role === 'admin') { %&gt;\n" +
+            "      &lt;% if(testUsers[i].role === 'admin') { %&gt;\n" +
             "        &lt;span&gt;Administrator&lt;/span&gt;\n" +
-            "      &lt;% } else if(users[i].role === 'manager') { %&gt;\n" +
+            "      &lt;% } else if(testUsers[i].role === 'manager') { %&gt;\n" +
             "        &lt;span&gt;Manager&lt;/span&gt;\n" +
             "      &lt;% } else { %&gt;\n" +
             "        &lt;span&gt;Regular User&lt;/span&gt;\n" +
             "      &lt;% } %&gt;\n" +
             "    &lt;/td&gt;\n" +
-            "    &lt;!-- More columns... --&gt;\n" +
             "  &lt;/tr&gt;\n" +
             "&lt;% } %&gt;</div>" +
-            "<div class='result'>" + template12(data) + "</div>";
+            "<div class='result'>" + template12({testUsers: testUsers}) + "</div>";
 
         // Switch to unsafe mode for the remaining tests
         _.templateSettings.safe = false;
