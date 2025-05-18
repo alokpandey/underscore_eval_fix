@@ -984,8 +984,25 @@
           }
         }
 
-        // Add underscore utility functions
+        // Add underscore utility functions directly to the context
         context._ = _;
+
+        // Add specific underscore functions that are commonly used in templates
+        context._.each = _.each;
+        context._.map = _.map;
+        context._.filter = _.filter;
+        context._.escape = _.escape;
+        context._.unescape = _.unescape;
+
+        // Add common JavaScript functions and objects
+        context.Array = Array;
+        context.Object = Object;
+        context.String = String;
+        context.Number = Number;
+        context.Boolean = Boolean;
+        context.Math = Math;
+        context.parseInt = parseInt;
+        context.parseFloat = parseFloat;
 
         // Add print function
         var printOutput = '';
@@ -1044,8 +1061,23 @@
               // Reset print output
               printOutput = '';
 
-              // Execute the code safely
-              executeCode(m.evaluate, context);
+              // Log the evaluate block for debugging
+              console.log("Evaluating code block:", m.evaluate);
+
+              // Special handling for for loops and _.each
+              if (m.evaluate.trim().startsWith('for(') || m.evaluate.trim().startsWith('_.each(')) {
+                // Execute the code as a whole block
+                executeCode(m.evaluate, context);
+              } else {
+                // For other code, split into statements and execute each one
+                var statements = m.evaluate.split(';');
+                for (var j = 0; j < statements.length; j++) {
+                  var stmt = statements[j].trim();
+                  if (stmt) {
+                    executeCode(stmt, context);
+                  }
+                }
+              }
 
               // Add any print output to the result
               result += printOutput;
@@ -1112,10 +1144,11 @@
         // Process different types of code blocks
 
         // 1. Handle for loops: for(var i=0; i<items.length; i++) { ... }
-        var forLoopRegex = /^\s*for\s*\(\s*var\s+(\w+)\s*=\s*([^;]+);\s*\1\s*<\s*([^;]+);\s*\1\s*\+\+\s*\)\s*\{([\s\S]*)\}\s*$/;
+        var forLoopRegex = /^\s*for\s*\(\s*var\s+(\w+)\s*=\s*([^;]+);\s*\1\s*<\s*([^;]+);\s*\1\s*\+\+\s*\)\s*\{([\s\S]*?)\}\s*$/;
         var forLoopMatch = code.match(forLoopRegex);
 
         if (forLoopMatch) {
+          console.log("FOR LOOP MATCHED:", forLoopMatch);
           var loopVar = forLoopMatch[1];
           var startExpr = forLoopMatch[2].trim();
           var endExpr = forLoopMatch[3].trim();
@@ -1134,6 +1167,7 @@
           if (endExpr.indexOf('.length') > 0) {
             var arrayName = endExpr.split('.')[0];
             var array = context[arrayName];
+            console.log("Array for length check:", arrayName, array);
             endVal = array ? array.length : 0;
           } else if (/^\d+$/.test(endExpr)) {
             endVal = parseInt(endExpr, 10);
@@ -1141,41 +1175,76 @@
             endVal = context[endExpr] || 0;
           }
 
+          console.log("Loop range:", startVal, "to", endVal);
+
           // Execute the loop
           for (var i = startVal; i < endVal; i++) {
             // Create a new context for this iteration
             var loopContext = Object.create(context);
             loopContext[loopVar] = i;
 
-            // Execute the loop body
-            executeCode(loopBody, loopContext);
+            // Execute the loop body with proper context
+            try {
+              // Process each statement in the loop body
+              var statements = loopBody.split(';');
+              for (var j = 0; j < statements.length; j++) {
+                var stmt = statements[j].trim();
+                if (stmt) {
+                  executeCode(stmt, loopContext);
+                }
+              }
+            } catch (e) {
+              console.error("Error in for loop iteration", i, ":", e);
+            }
           }
 
           return;
         }
 
         // 2. Handle _.each loops: _.each(items, function(item) { ... })
-        var eachRegex = /^\s*_\.each\s*\(\s*(\w+)\s*,\s*function\s*\(\s*(\w+)(?:\s*,\s*(\w+))?\s*\)\s*\{([\s\S]*)\}\s*\)\s*;?\s*$/;
+        var eachRegex = /^\s*_\.each\s*\(\s*(\w+)\s*,\s*function\s*\(\s*(\w+)(?:\s*,\s*(\w+))?\s*\)\s*\{([\s\S]*?)\}\s*\)\s*;?\s*$/;
         var eachMatch = code.match(eachRegex);
 
         if (eachMatch) {
+          console.log("EACH LOOP MATCHED:", eachMatch);
           var collectionName = eachMatch[1];
           var collection = context[collectionName];
           var itemVar = eachMatch[2];
           var indexVar = eachMatch[3];
           var eachBody = eachMatch[4];
 
-          if (!collection) return;
+          console.log("Collection:", collectionName, collection);
+
+          if (!collection) {
+            console.warn("Collection is undefined:", collectionName);
+            return;
+          }
+
+          // Make sure we have the underscore object
+          var _ = context._ || _$1;
 
           // Use the actual _.each function
-          context._.each(collection, function(item, index) {
+          _.each(collection, function(item, index) {
+            console.log("Processing item:", item, "at index:", index);
+
             // Create a new context for this iteration
             var eachContext = Object.create(context);
             eachContext[itemVar] = item;
             if (indexVar) eachContext[indexVar] = index;
 
-            // Execute the each body
-            executeCode(eachBody, eachContext);
+            // Execute the each body with proper context
+            try {
+              // Process each statement in the each body
+              var statements = eachBody.split(';');
+              for (var j = 0; j < statements.length; j++) {
+                var stmt = statements[j].trim();
+                if (stmt) {
+                  executeCode(stmt, eachContext);
+                }
+              }
+            } catch (e) {
+              console.error("Error in _.each iteration for item", item, ":", e);
+            }
           });
 
           return;
