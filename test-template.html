@@ -227,7 +227,7 @@
             "<div class='result'>" + template1(data) + "</div>";
 
         // Test 2: More complex template with escaping and property access
-        // Create the template for reference
+        // Create a template with _.each
         var template2 = _.template(
             "<ul>\n" +
             "<% _.each(items, function(item) { %>\n" +
@@ -237,24 +237,15 @@
             "<p>User: <%- user.firstName %> <%- user.lastName %></p>"
         );
 
-        // Generate HTML directly inline
-        var html2 = '<ul>';
-        _.each(data.items, function(item) {
-            html2 += '<li>' + item + '</li>';
-        });
-        html2 += '</ul>';
-        html2 += '<p>User: ' + _.escape(data.user.firstName) + ' ' + _.escape(data.user.lastName) + '</p>';
-
         document.getElementById("output2").innerHTML =
             "<h2>Test 2: _.each Loop and Escaping</h2>" +
             "<div class='code'>&lt;% _.each(items, function(item) { %&gt;\n" +
             "  &lt;li&gt;&lt;%= item %&gt;&lt;/li&gt;\n" +
             "&lt;% }); %&gt;</div>" +
-            "<div class='result'>" + html2 + "</div>" +
-            "<p><em>Note: This list is generated using _.each directly in the code.</em></p>";
+            "<div class='result'>" + template2(data) + "</div>";
 
         // Test 5: For loop in safe mode
-        // Create the template for reference
+        // Create a template with for loop
         var template5 = _.template(
             "<ul>\n" +
             "<% for(var i=0; i<items.length; i++) { %>\n" +
@@ -263,20 +254,12 @@
             "</ul>"
         );
 
-        // Generate HTML directly inline
-        var html5 = "<ul>";
-        for (var i = 0; i < data.items.length; i++) {
-            html5 += "<li>" + data.items[i] + " (index: " + i + ")</li>";
-        }
-        html5 += "</ul>";
-
         document.getElementById("output5").innerHTML =
             "<h2>Test 5: For Loop</h2>" +
             "<div class='code'>&lt;% for(var i=0; i&lt;items.length; i++) { %&gt;\n" +
             "  &lt;li&gt;&lt;%= items[i] %&gt; (index: &lt;%= i %&gt;)&lt;/li&gt;\n" +
             "&lt;% } %&gt;</div>" +
-            "<div class='result'>" + html5 + "</div>" +
-            "<p><em>Note: This list is generated using a for loop directly in the code.</em></p>";
+            "<div class='result'>" + template5(data) + "</div>";
 
         // Test 6: If statement in safe mode
         var template6 = _.template(

@@ -1175,14 +1175,28 @@
 
           var loopBody = forLoopMatch[4];
 
+          // Create a result variable to capture any output from the loop
+          var loopResult = '';
+
           // Execute the loop
           for (var i = startVal; i < endVal; i++) {
             // Create a new scope for each iteration
             var iterationScope = Object.create(sandbox);
             iterationScope[loopVar] = i;
 
-            // Execute the loop body
-            executeStatements(loopBody, iterationScope);
+            // Execute the loop body and capture any output
+            var iterationResult = '';
+            try {
+              iterationResult = executeStatements(loopBody, iterationScope) || '';
+              loopResult += iterationResult;
+            } catch (e) {
+              console.error('Error in for loop iteration ' + i + ':', e);
+            }
+          }
+
+          // Return any output from the loop
+          if (loopResult) {
+            result += loopResult;
           }
 
           return;
@@ -1413,14 +1427,20 @@
       function executeStatements(code, scope) {
         // Split the code into statements
         var statements = code.split(';');
+        var stmtResult = '';
 
         for (var i = 0; i < statements.length; i++) {
           var stmt = statements[i].trim();
           if (stmt) {
             // Make sure we're passing the correct scope
-            safeEval(stmt + ';', scope, _);
+            var currentResult = safeEval(stmt + ';', scope, _);
+            if (currentResult) {
+              stmtResult += currentResult;
+            }
           }
         }
+
+        return stmtResult;
       }
 
       // Helper function to parse function arguments
