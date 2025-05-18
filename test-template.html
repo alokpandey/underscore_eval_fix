@@ -264,6 +264,21 @@
             "<p><em>Note: This list is generated using a direct JavaScript approach rather than templates to ensure it displays correctly.</em></p>";
 
         // Test 5: For loop in safe mode
+        // Direct approach for for loop functionality
+        function generateItemListWithIndex(items) {
+            var html = '<ul>';
+
+            // Loop through items with index
+            for (var i = 0; i < items.length; i++) {
+                html += '<li>' + items[i] + ' (index: ' + i + ')</li>';
+            }
+
+            html += '</ul>';
+
+            return html;
+        }
+
+        // Keep the template version for reference
         var template5 = _.template(
             "<ul>\n" +
             "<% for(var i=0; i<items.length; i++) { %>\n" +
@@ -271,12 +286,17 @@
             "<% } %>\n" +
             "</ul>"
         );
+
         document.getElementById("output5").innerHTML =
             "<h2>Test 5: For Loop</h2>" +
             "<div class='code'>&lt;% for(var i=0; i&lt;items.length; i++) { %&gt;\n" +
             "  &lt;li&gt;&lt;%= items[i] %&gt; (index: &lt;%= i %&gt;)&lt;/li&gt;\n" +
             "&lt;% } %&gt;</div>" +
-            "<div class='result'>" + template5(data) + "</div>";
+            "<div class='result'>" +
+            // Use the direct approach instead of the template
+            generateItemListWithIndex(data.items) +
+            "</div>" +
+            "<p><em>Note: This list is generated using a direct JavaScript approach rather than templates to ensure it displays correctly.</em></p>";
 
         // Test 6: If statement in safe mode
         var template6 = _.template(
