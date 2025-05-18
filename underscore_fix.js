@@ -974,6 +974,27 @@
         var matches = [];
         var index = 0;
 
+        // Create a global context for the template
+        var context = {};
+
+        // Copy all properties from data to context
+        for (var key in data) {
+          if (data.hasOwnProperty(key)) {
+            context[key] = data[key];
+          }
+        }
+
+        // Add underscore utility functions
+        context._ = _;
+
+        // Add print function
+        var printOutput = '';
+        context.print = function() {
+          for (var i = 0; i < arguments.length; i++) {
+            printOutput += arguments[i];
+          }
+        };
+
         // First pass: collect all matches and their positions
         text.replace(matcher, function(match, escape, interpolate, evaluate, offset) {
           matches.push({
@@ -986,12 +1007,6 @@
           });
           return match;
         });
-
-        // Create a global sandbox for the entire template
-        var globalSandbox = createSandbox(data, _);
-
-        // Add the underscore object directly to the sandbox
-        globalSandbox._ = _;
 
         // Second pass: process the template
         for (var i = 0; i < matches.length; i++) {
@@ -1006,8 +1021,8 @@
             var escapeValue = '';
             try {
               // Safely access nested properties
-              escapeValue = getPropertySafely(data, m.escape);
-              escapeValue = escapeValue == null ? '' : _.escape(escapeValue);
+              escapeValue = getNestedValue(context, m.escape);
+              escapeValue = escapeValue == null ? '' : _.escape(String(escapeValue));
             } catch (e) {
               escapeValue = '';
               console.error('Template error in escape expression:', m.escape, e);
@@ -1017,21 +1032,23 @@
             var interpValue = '';
             try {
               // Safely access nested properties
-              interpValue = getPropertySafely(data, m.interpolate);
-              interpValue = interpValue == null ? '' : interpValue;
+              interpValue = getNestedValue(context, m.interpolate);
+              interpValue = interpValue == null ? '' : String(interpValue);
             } catch (e) {
               interpValue = '';
               console.error('Template error in interpolate expression:', m.interpolate, e);
             }
             result += interpValue;
           } else if (m.evaluate) {
-            // For evaluate blocks, we'll use our safe interpreter
             try {
-              // Execute the code safely using our interpreter
-              var evalResult = safeEval(m.evaluate, globalSandbox, _);
-              if (evalResult) {
-                result += evalResult;
-              }
+              // Reset print output
+              printOutput = '';
+
+              // Execute the code safely
+              executeCode(m.evaluate, context);
+
+              // Add any print output to the result
+              result += printOutput;
             } catch (e) {
               console.error('Template error in evaluate expression:', m.evaluate, e);
             }
@@ -1048,107 +1065,51 @@
       };
 
       // Helper function to safely access nested properties
-      function getPropertySafely(obj, path) {
+      function getNestedValue(obj, path) {
+        path = path.trim();
+
         // Simple property access
-        if (/^[\w\$]+$/.test(path.trim())) {
-          return obj[path.trim()];
+        if (/^[\w\$]+$/.test(path)) {
+          return obj[path];
         }
 
-        // For more complex expressions, we'll use a very limited parser
-        // This is a simplified implementation and doesn't support all JavaScript expressions
-        var value = obj;
+        // Handle array access with bracket notation: items[0]
+        var arrayAccessRegex = /^(\w+)\[(\d+)\]$/;
+        var arrayMatch = path.match(arrayAccessRegex);
+        if (arrayMatch) {
+          var array = obj[arrayMatch[1]];
+          if (!array) return null;
+          var index = parseInt(arrayMatch[2], 10);
+          return array[index];
+        }
+
+        // Handle dot notation for nested properties: user.name
         var parts = path.split('.');
+        var current = obj;
 
         for (var i = 0; i < parts.length; i++) {
           var part = parts[i].trim();
-          // Handle array access like obj.prop[0]
-          var arrayMatch = part.match(/^(\w+)\[(\d+)\]$/);
-          if (arrayMatch) {
-            var propName = arrayMatch[1];
-            var index = parseInt(arrayMatch[2], 10);
-            value = value[propName];
-            if (value == null) return null;
-            value = value[index];
+
+          // Handle array access within dot notation: users[0].name
+          var nestedArrayMatch = part.match(arrayAccessRegex);
+          if (nestedArrayMatch) {
+            var nestedArray = current[nestedArrayMatch[1]];
+            if (!nestedArray) return null;
+            var nestedIndex = parseInt(nestedArrayMatch[2], 10);
+            current = nestedArray[nestedIndex];
           } else {
-            value = value[part];
+            current = current[part];
           }
 
-          if (value == null) return null;
+          if (current == null) return null;
         }
 
-        return value;
+        return current;
       }
 
-      // Helper function to create a sandbox environment
-      function createSandbox(data, _) {
-        // Create a sandboxed environment with limited capabilities
-        var sandbox = Object.create(null);
-
-        // Add safe versions of common JavaScript functions
-        var safeGlobals = {
-          // Safe versions of common JavaScript functions
-          Array: Array,
-          Object: Object,
-          String: String,
-          Number: Number,
-          Boolean: Boolean,
-          Date: Date,
-          Math: Math,
-          parseInt: parseInt,
-          parseFloat: parseFloat,
-          isNaN: isNaN,
-          isFinite: isFinite,
-
-          // Add data object
-          data: data,
-
-          // Add print function (appends to result)
-          print: function() {
-            var args = Array.prototype.slice.call(arguments);
-            sandbox._resultOutput += args.join('');
-          }
-        };
-
-        // Initialize result output
-        sandbox._resultOutput = '';
-
-        // Copy all properties from data to sandbox
-        if (data && typeof data === 'object') {
-          for (var key in data) {
-            if (data.hasOwnProperty(key)) {
-              sandbox[key] = data[key];
-            }
-          }
-        }
-
-        // Copy all safe globals to sandbox
-        for (var key in safeGlobals) {
-          if (safeGlobals.hasOwnProperty(key)) {
-            sandbox[key] = safeGlobals[key];
-          }
-        }
-
-        // Add underscore utility functions directly to the sandbox
-        sandbox._ = _;
-
-        // Add specific underscore functions that are commonly used in templates
-        sandbox._.each = _.each;
-        sandbox._.map = _.map;
-        sandbox._.filter = _.filter;
-        sandbox._.escape = _.escape;
-        sandbox._.unescape = _.unescape;
-
-        return sandbox;
-      }
-
-      // Safe evaluation function for template evaluate blocks
-      function safeEval(code, sandbox, _) {
-        // If sandbox is not a sandbox but data, create a sandbox
-        if (!sandbox._resultOutput && sandbox !== null && typeof sandbox === 'object') {
-          sandbox = createSandbox(sandbox, _);
-        }
-
-        // Parse and execute common template operations
+      // Helper function to execute code safely
+      function executeCode(code, context) {
+        // Process different types of code blocks
 
         // 1. Handle for loops: for(var i=0; i<items.length; i++) { ... }
         var forLoopRegex = /^\s*for\s*\(\s*var\s+(\w+)\s*=\s*([^;]+);\s*\1\s*<\s*([^;]+);\s*\1\s*\+\+\s*\)\s*\{([\s\S]*)\}\s*$/;
@@ -1156,98 +1117,68 @@
 
         if (forLoopMatch) {
           var loopVar = forLoopMatch[1];
-          var startExpr = forLoopMatch[2];
-          var startVal = evaluateSimpleExpression(startExpr, sandbox);
-
-          var endExpr = forLoopMatch[3];
-          var endVal;
-
-          // Handle array.length expressions directly
-          if (endExpr.indexOf('.length') > 0) {
-            var arrayName = endExpr.split('.')[0];
-            if (sandbox[arrayName] && Array.isArray(sandbox[arrayName])) {
-              endVal = sandbox[arrayName].length;
-            } else {
-              // Try to evaluate normally
-              endVal = evaluateSimpleExpression(endExpr, sandbox);
-            }
-          } else {
-            // For other expressions
-            endVal = evaluateSimpleExpression(endExpr, sandbox);
-          }
-
-          // Ensure we have a valid number
-          if (typeof endVal !== 'number' || isNaN(endVal)) {
-            endVal = 0; // Default to 0 if we can't determine the end value
-          }
-
+          var startExpr = forLoopMatch[2].trim();
+          var endExpr = forLoopMatch[3].trim();
           var loopBody = forLoopMatch[4];
 
-          // Create a parent scope for the loop
-          var loopScope = Object.create(sandbox);
+          // Get start value
+          var startVal = 0;
+          if (/^\d+$/.test(startExpr)) {
+            startVal = parseInt(startExpr, 10);
+          } else {
+            startVal = context[startExpr] || 0;
+          }
+
+          // Get end value
+          var endVal = 0;
+          if (endExpr.indexOf('.length') > 0) {
+            var arrayName = endExpr.split('.')[0];
+            var array = context[arrayName];
+            endVal = array ? array.length : 0;
+          } else if (/^\d+$/.test(endExpr)) {
+            endVal = parseInt(endExpr, 10);
+          } else {
+            endVal = context[endExpr] || 0;
+          }
 
           // Execute the loop
           for (var i = startVal; i < endVal; i++) {
-            // Set the loop variable in the loop scope
-            loopScope[loopVar] = i;
+            // Create a new context for this iteration
+            var loopContext = Object.create(context);
+            loopContext[loopVar] = i;
 
             // Execute the loop body
-            try {
-              executeStatements(loopBody, loopScope);
-            } catch (e) {
-              console.error('Error in for loop iteration ' + i + ':', e);
-            }
+            executeCode(loopBody, loopContext);
           }
 
-          // Copy the result output back to the parent sandbox
-          sandbox._resultOutput = loopScope._resultOutput;
-
-          return sandbox._resultOutput;
+          return;
         }
 
-        // 2. Handle forEach/each loops: _.each(items, function(item) { ... })
-        var eachLoopRegex = /^\s*_\.each\s*\(\s*(\w+)\s*,\s*function\s*\(\s*(\w+)(?:\s*,\s*(\w+))?\s*\)\s*\{([\s\S]*)\}\s*\)\s*;?\s*$/;
-        var eachLoopMatch = code.match(eachLoopRegex);
+        // 2. Handle _.each loops: _.each(items, function(item) { ... })
+        var eachRegex = /^\s*_\.each\s*\(\s*(\w+)\s*,\s*function\s*\(\s*(\w+)(?:\s*,\s*(\w+))?\s*\)\s*\{([\s\S]*)\}\s*\)\s*;?\s*$/;
+        var eachMatch = code.match(eachRegex);
 
-        if (eachLoopMatch) {
-          var collectionName = eachLoopMatch[1];
-          var collection = sandbox[collectionName];
-          var itemVar = eachLoopMatch[2];
-          var indexVar = eachLoopMatch[3];
-          var loopBody = eachLoopMatch[4];
+        if (eachMatch) {
+          var collectionName = eachMatch[1];
+          var collection = context[collectionName];
+          var itemVar = eachMatch[2];
+          var indexVar = eachMatch[3];
+          var eachBody = eachMatch[4];
 
-          // Handle case where collection is undefined or not an array
-          if (!collection) {
-            console.warn("Collection is undefined:", collectionName);
-            return sandbox._resultOutput;
-          }
+          if (!collection) return;
 
-          // Create a custom each function that captures output
-          var processItem = function(item, index) {
-            // Create a new scope for each iteration that inherits from the parent sandbox
-            var iterationScope = Object.create(sandbox);
-            iterationScope[itemVar] = item;
-            if (indexVar) iterationScope[indexVar] = index;
+          // Use the actual _.each function
+          context._.each(collection, function(item, index) {
+            // Create a new context for this iteration
+            var eachContext = Object.create(context);
+            eachContext[itemVar] = item;
+            if (indexVar) eachContext[indexVar] = index;
 
-            // Execute the loop body
-            try {
-              executeStatements(loopBody, iterationScope);
+            // Execute the each body
+            executeCode(eachBody, eachContext);
+          });
 
-              // Copy any changes to _resultOutput back to the parent sandbox
-              sandbox._resultOutput = iterationScope._resultOutput;
-            } catch (e) {
-              console.error('Error in _.each iteration:', e);
-            }
-          };
-
-          // Use the actual _.each function from underscore
-          try {
-            _.each(collection, processItem);
-          } catch (e) {
-            console.error('Error executing _.each:', e);
-          }
-
-          return sandbox._resultOutput;
+          return;
         }
 
         // 3. Handle if statements: if (condition) { ... } else { ... }
@@ -1255,71 +1186,136 @@
         var ifMatch = code.match(ifRegex);
 
         if (ifMatch) {
-          var condition = evaluateSimpleExpression(ifMatch[1], sandbox);
+          var condition = ifMatch[1];
           var thenBlock = ifMatch[2];
           var elseBlock = ifMatch[3];
 
-          if (condition) {
-            // Create a new scope for the then block
-            var thenScope = Object.create(sandbox);
-            executeStatements(thenBlock, thenScope);
-            // Copy any changes to _resultOutput back to the parent sandbox
-            sandbox._resultOutput = thenScope._resultOutput;
+          // Evaluate the condition
+          var conditionResult = evaluateCondition(condition, context);
+
+          if (conditionResult) {
+            executeCode(thenBlock, context);
           } else if (elseBlock) {
-            // Create a new scope for the else block
-            var elseScope = Object.create(sandbox);
-            executeStatements(elseBlock, elseScope);
-            // Copy any changes to _resultOutput back to the parent sandbox
-            sandbox._resultOutput = elseScope._resultOutput;
+            executeCode(elseBlock, context);
           }
 
-          return sandbox._resultOutput;
+          return;
         }
 
-        // 4. Handle simple variable assignments: var x = expression;
-        var assignmentRegex = /^\s*var\s+(\w+)\s*=\s*([^;]+);\s*$/;
-        var assignmentMatch = code.match(assignmentRegex);
+        // 4. Handle variable assignments: var x = expression;
+        var varRegex = /^\s*var\s+(\w+)\s*=\s*([^;]+);\s*$/;
+        var varMatch = code.match(varRegex);
 
-        if (assignmentMatch) {
-          var varName = assignmentMatch[1];
-          var expression = assignmentMatch[2];
+        if (varMatch) {
+          var varName = varMatch[1];
+          var varValue = varMatch[2].trim();
 
-          sandbox[varName] = evaluateSimpleExpression(expression, sandbox);
-          return sandbox._resultOutput;
-        }
-
-        // 5. Handle print statements: print("Hello", name);
-        var printRegex = /^\s*print\s*\((.*)\);\s*$/;
-        var printMatch = code.match(printRegex);
-
-        if (printMatch) {
-          var args = parseArguments(printMatch[1], sandbox);
-          sandbox._resultOutput += args.join('');
-          return sandbox._resultOutput;
-        }
-
-        // 6. Handle function calls: func(arg1, arg2);
-        var funcCallRegex = /^\s*(\w+)\s*\((.*)\);\s*$/;
-        var funcCallMatch = code.match(funcCallRegex);
-
-        if (funcCallMatch) {
-          var funcName = funcCallMatch[1];
-          var argsStr = funcCallMatch[2];
-
-          if (sandbox[funcName] && typeof sandbox[funcName] === 'function') {
-            var args = parseArguments(argsStr, sandbox);
-            sandbox[funcName].apply(null, args);
+          // Handle numeric literals
+          if (/^-?\d+(\.\d+)?$/.test(varValue)) {
+            context[varName] = parseFloat(varValue);
+            return;
           }
 
-          return sandbox._resultOutput;
+          // Handle string literals
+          if (/^["'](.*)["']$/.test(varValue)) {
+            context[varName] = varValue.slice(1, -1);
+            return;
+          }
+
+          // Handle array access
+          var arrayAccessMatch = varValue.match(/^(\w+)\[(\d+)\]$/);
+          if (arrayAccessMatch) {
+            var array = context[arrayAccessMatch[1]];
+            var index = parseInt(arrayAccessMatch[2], 10);
+            context[varName] = array ? array[index] : null;
+            return;
+          }
+
+          // Handle property access
+          if (varValue.indexOf('.') > 0) {
+            context[varName] = getNestedValue(context, varValue);
+            return;
+          }
+
+          // Handle simple variable references
+          if (/^\w+$/.test(varValue)) {
+            context[varName] = context[varValue];
+            return;
+          }
+
+          // Handle basic arithmetic
+          var mathMatch = varValue.match(/^(.+?)\s*([\+\-\*\/])\s*(.+)$/);
+          if (mathMatch) {
+            var left = evaluateExpression(mathMatch[1], context);
+            var op = mathMatch[2];
+            var right = evaluateExpression(mathMatch[3], context);
+
+            switch (op) {
+              case '+': context[varName] = left + right; break;
+              case '-': context[varName] = left - right; break;
+              case '*': context[varName] = left * right; break;
+              case '/': context[varName] = left / right; break;
+            }
+            return;
+          }
+
+          return;
         }
 
-        // If we get here, we couldn't parse the code
-        return sandbox._resultOutput;
+        // 5. Handle simple expressions and statements
+        var statements = code.split(';');
+        for (var i = 0; i < statements.length; i++) {
+          var stmt = statements[i].trim();
+          if (!stmt) continue;
+
+          // Handle print statements
+          var printMatch = stmt.match(/^\s*print\s*\((.*)\)\s*$/);
+          if (printMatch) {
+            var printArgs = printMatch[1].split(',');
+            for (var j = 0; j < printArgs.length; j++) {
+              var arg = evaluateExpression(printArgs[j], context);
+              context.print(arg);
+            }
+            continue;
+          }
+
+          // Handle increment/decrement: x++, x+=1, etc.
+          var incrMatch = stmt.match(/^(\w+)\s*(\+\+|\+=\s*(\d+))$/);
+          if (incrMatch) {
+            var varName = incrMatch[1];
+            var op = incrMatch[2];
+
+            if (op === '++') {
+              context[varName] = (context[varName] || 0) + 1;
+            } else if (op.startsWith('+=')) {
+              var amount = parseInt(incrMatch[3], 10);
+              context[varName] = (context[varName] || 0) + amount;
+            }
+            continue;
+          }
+
+          // Handle function calls: func(arg1, arg2)
+          var funcCallMatch = stmt.match(/^(\w+)\s*\((.*)\)$/);
+          if (funcCallMatch) {
+            var funcName = funcCallMatch[1];
+            var argsStr = funcCallMatch[2];
+
+            if (context[funcName] && typeof context[funcName] === 'function') {
+              var args = [];
+              if (argsStr.trim()) {
+                args = argsStr.split(',').map(function(arg) {
+                  return evaluateExpression(arg, context);
+                });
+              }
+              context[funcName].apply(context, args);
+            }
+            continue;
+          }
+        }
       }
 
-      // Helper function to evaluate simple expressions
-      function evaluateSimpleExpression(expr, scope) {
+      // Helper function to evaluate expressions
+      function evaluateExpression(expr, context) {
         expr = expr.trim();
 
         // Handle numeric literals
@@ -1328,7 +1324,7 @@
         }
 
         // Handle string literals
-        if (/^["'].*["']$/.test(expr)) {
+        if (/^["'](.*)["']$/.test(expr)) {
           return expr.slice(1, -1);
         }
 
@@ -1336,71 +1332,61 @@
         if (expr === 'true') return true;
         if (expr === 'false') return false;
 
-        // Handle null/undefined
-        if (expr === 'null') return null;
-        if (expr === 'undefined') return undefined;
+        // Handle array access
+        var arrayAccessMatch = expr.match(/^(\w+)\[(\d+)\]$/);
+        if (arrayAccessMatch) {
+          var array = context[arrayAccessMatch[1]];
+          var index = parseInt(arrayAccessMatch[2], 10);
+          return array ? array[index] : null;
+        }
 
-        // Handle array/object property access (e.g., items.length)
-        var dotParts = expr.split('.');
-        if (dotParts.length > 1) {
-          var obj = scope[dotParts[0]];
-
-          // Handle null/undefined base object
-          if (obj == null) {
-            return undefined;
-          }
-
-          // Special case for array.length
-          if (dotParts.length === 2 && dotParts[1] === 'length' && Array.isArray(obj)) {
-            return obj.length;
-          }
-
-          // Navigate through the property chain
-          for (var i = 1; i < dotParts.length; i++) {
-            if (obj == null) {
-              return undefined;
-            }
-            obj = obj[dotParts[i]];
-          }
-
-          return obj;
+        // Handle property access
+        if (expr.indexOf('.') > 0) {
+          return getNestedValue(context, expr);
         }
 
         // Handle simple variable references
         if (/^\w+$/.test(expr)) {
-          return scope[expr];
+          return context[expr];
         }
 
-        // Handle array indexing (e.g., items[0])
-        var arrayAccessMatch = expr.match(/^(\w+)\[(\d+)\]$/);
-        if (arrayAccessMatch) {
-          var array = scope[arrayAccessMatch[1]];
-          var index = parseInt(arrayAccessMatch[2], 10);
-          return array ? array[index] : undefined;
-        }
-
-        // Handle simple binary operations
-        var binaryOpMatch = expr.match(/^(.+?)\s*([\+\-\*\/\%])\s*(.+)$/);
-        if (binaryOpMatch) {
-          var left = evaluateSimpleExpression(binaryOpMatch[1], scope);
-          var op = binaryOpMatch[2];
-          var right = evaluateSimpleExpression(binaryOpMatch[3], scope);
+        // Handle basic arithmetic
+        var mathMatch = expr.match(/^(.+?)\s*([\+\-\*\/])\s*(.+)$/);
+        if (mathMatch) {
+          var left = evaluateExpression(mathMatch[1], context);
+          var op = mathMatch[2];
+          var right = evaluateExpression(mathMatch[3], context);
 
           switch (op) {
             case '+': return left + right;
             case '-': return left - right;
             case '*': return left * right;
             case '/': return left / right;
-            case '%': return left % right;
           }
         }
 
-        // Handle simple comparisons
-        var comparisonMatch = expr.match(/^(.+?)\s*(==|===|!=|!==|<|>|<=|>=)\s*(.+)$/);
+        return null;
+      }
+
+      // Helper function to evaluate conditions
+      function evaluateCondition(condition, context) {
+        condition = condition.trim();
+
+        // Handle simple boolean values
+        if (condition === 'true') return true;
+        if (condition === 'false') return false;
+
+        // Handle negation: !expression
+        if (condition.startsWith('!')) {
+          return !evaluateExpression(condition.substring(1), context);
+        }
+
+        // Handle comparisons: x == y, x === y, x != y, x !== y, x < y, x > y, x <= y, x >= y
+        var comparisonMatch = condition.match(/^(.+?)\s*(==|===|!=|!==|<|>|<=|>=)\s*(.+)$/);
         if (comparisonMatch) {
-          var left = evaluateSimpleExpression(comparisonMatch[1], scope);
+          var left = evaluateExpression(comparisonMatch[1], context);
           var op = comparisonMatch[2];
-          var right = evaluateSimpleExpression(comparisonMatch[3], scope);
+          var right = evaluateExpression(comparisonMatch[3], context);
 
           switch (op) {
             case '==': return left == right;
@@ -1414,85 +1400,38 @@
           }
         }
 
-        // Handle logical operations
-        var logicalMatch = expr.match(/^(.+?)\s*(&&|\|\|)\s*(.+)$/);
+        // Handle logical operators: x && y, x || y
+        var logicalMatch = condition.match(/^(.+?)\s*(&&|\|\|)\s*(.+)$/);
         if (logicalMatch) {
-          var left = evaluateSimpleExpression(logicalMatch[1], scope);
+          var left = evaluateCondition(logicalMatch[1], context);
           var op = logicalMatch[2];
 
           if (op === '&&') {
-            return left ? evaluateSimpleExpression(logicalMatch[3], scope) : left;
+            return left ? evaluateCondition(logicalMatch[3], context) : false;
           } else { // ||
-            return left ? left : evaluateSimpleExpression(logicalMatch[3], scope);
+            return left ? true : evaluateCondition(logicalMatch[3], context);
           }
         }
 
-        // If we can't evaluate it, return undefined
-        console.warn('Could not evaluate expression:', expr);
-        return undefined;
+        // Default to treating the condition as an expression
+        return !!evaluateExpression(condition, context);
       }
 
-      // Helper function to execute multiple statements
-      function executeStatements(code, scope) {
-        // Split the code into statements
-        var statements = code.split(';');
 
-        for (var i = 0; i < statements.length; i++) {
-          var stmt = statements[i].trim();
-          if (stmt) {
-            // Make sure we're passing the correct scope
-            try {
-              // Pass the underscore object to ensure it's available
-              var _ = scope._ || _$1;
-              safeEval(stmt + ';', scope, _);
-            } catch (e) {
-              console.error('Error executing statement:', stmt, e);
-            }
-          }
-        }
+
+      // Safe evaluation function for template evaluate blocks (legacy function, not used anymore)
+      function safeEval(code, context, _) {
+        // This function is kept for backward compatibility
+        // but we now use executeCode directly
+        executeCode(code, context);
+        return '';
       }
 
-      // Helper function to parse function arguments
-      function parseArguments(argsStr, scope) {
-        if (!argsStr.trim()) return [];
 
-        var args = [];
-        var inString = false;
-        var stringChar = '';
-        var currentArg = '';
-        var parenDepth = 0;
 
-        for (var i = 0; i < argsStr.length; i++) {
-          var char = argsStr[i];
 
-          if (char === '"' || char === "'") {
-            if (inString && char === stringChar) {
-              inString = false;
-            } else if (!inString) {
-              inString = true;
-              stringChar = char;
-            }
-            currentArg += char;
-          } else if (char === '(' && !inString) {
-            parenDepth++;
-            currentArg += char;
-          } else if (char === ')' && !inString) {
-            parenDepth--;
-            currentArg += char;
-          } else if (char === ',' && !inString && parenDepth === 0) {
-            args.push(evaluateSimpleExpression(currentArg, scope));
-            currentArg = '';
-          } else {
-            currentArg += char;
-          }
-        }
 
-        if (currentArg.trim()) {
-          args.push(evaluateSimpleExpression(currentArg, scope));
-        }
 
-        return args;
-      }
 
       // For compatibility, provide a source property
       template.source = '/* Safe template mode enabled - source not available */';
