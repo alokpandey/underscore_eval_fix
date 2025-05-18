@@ -1147,56 +1147,44 @@
         var forLoopMatch = code.match(forLoopRegex);
 
         if (forLoopMatch) {
-          console.log("FOR LOOP MATCH:", forLoopMatch);
-
           var loopVar = forLoopMatch[1];
-          console.log("Loop variable:", loopVar);
-
           var startExpr = forLoopMatch[2];
-          console.log("Start expression:", startExpr);
           var startVal = evaluateSimpleExpression(startExpr, sandbox);
-          console.log("Start value:", startVal);
 
           var endExpr = forLoopMatch[3];
-          console.log("End expression:", endExpr);
-          var endVal = evaluateSimpleExpression(endExpr, sandbox);
-          console.log("End value:", endVal);
+          var endVal;
 
-          var loopBody = forLoopMatch[4];
-          console.log("Loop body:", loopBody);
-
-          // Check if endVal is a valid number
-          if (typeof endVal !== 'number' || isNaN(endVal)) {
-            console.warn("Invalid end value for loop:", endVal);
-            console.warn("End expression was:", endExpr);
-            console.warn("Sandbox keys:", Object.keys(sandbox));
-
-            // Try to handle common case of array.length
-            if (endExpr.indexOf('.length') > 0) {
-              var arrayName = endExpr.split('.')[0];
-              console.log("Array name:", arrayName);
-              if (sandbox[arrayName] && Array.isArray(sandbox[arrayName])) {
-                endVal = sandbox[arrayName].length;
-                console.log("Using array length instead:", endVal);
-              }
+          // Handle array.length expressions directly
+          if (endExpr.indexOf('.length') > 0) {
+            var arrayName = endExpr.split('.')[0];
+            if (sandbox[arrayName] && Array.isArray(sandbox[arrayName])) {
+              endVal = sandbox[arrayName].length;
+            } else {
+              // Try to evaluate normally
+              endVal = evaluateSimpleExpression(endExpr, sandbox);
             }
+          } else {
+            // For other expressions
+            endVal = evaluateSimpleExpression(endExpr, sandbox);
           }
 
-          console.log("Running for loop from", startVal, "to", endVal);
+          // Ensure we have a valid number
+          if (typeof endVal !== 'number' || isNaN(endVal)) {
+            endVal = 0; // Default to 0 if we can't determine the end value
+          }
 
+          var loopBody = forLoopMatch[4];
+
+          // Execute the loop
           for (var i = startVal; i < endVal; i++) {
-            console.log("Loop iteration:", i);
-
             // Create a new scope for each iteration
             var iterationScope = Object.create(sandbox);
             iterationScope[loopVar] = i;
 
             // Execute the loop body
-            console.log("Executing loop body with", loopVar, "=", i);
             executeStatements(loopBody, iterationScope);
           }
 
-          console.log("For loop complete");
           return;
         }
 
@@ -1310,29 +1298,26 @@
         // Handle array/object property access (e.g., items.length)
         var dotParts = expr.split('.');
         if (dotParts.length > 1) {
-          console.log("Evaluating property access:", expr);
-          console.log("Base object name:", dotParts[0]);
-          console.log("Scope keys:", Object.keys(scope));
-
           var obj = scope[dotParts[0]];
-          console.log("Base object value:", obj);
 
+          // Handle null/undefined base object
           if (obj == null) {
-            console.warn("Base object is null or undefined:", dotParts[0]);
             return undefined;
           }
 
+          // Special case for array.length
+          if (dotParts.length === 2 && dotParts[1] === 'length' && Array.isArray(obj)) {
+            return obj.length;
+          }
+
+          // Navigate through the property chain
           for (var i = 1; i < dotParts.length; i++) {
-            console.log("Accessing property:", dotParts[i]);
             if (obj == null) {
-              console.warn("Object is null or undefined when accessing:", dotParts[i]);
               return undefined;
             }
             obj = obj[dotParts[i]];
-            console.log("Property value:", obj);
           }
 
-          console.log("Final property value:", obj);
           return obj;
         }
 
@@ -1410,6 +1395,7 @@
         for (var i = 0; i < statements.length; i++) {
           var stmt = statements[i].trim();
           if (stmt) {
+            // Make sure we're passing the correct scope
             safeEval(stmt + ';', scope, _);
           }
         }
