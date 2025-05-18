@@ -975,8 +975,115 @@
             }
           }
 
-          // Create a function from the source code
-          var func = new Function(argument, '_', source);
+          // Modify the source to prevent access to global objects and eval
+          // This approach blocks access to global objects in templates while preserving normal functionality
+
+          // First, let's add a preamble to the source that shadows global objects
+          var preamble = "var window, document, location, history, navigator, localStorage, " +
+                        "sessionStorage, indexedDB, fetch, XMLHttpRequest, WebSocket, Worker, " +
+                        "eval, Function, setTimeout, setInterval, clearTimeout, clearInterval, " +
+                        "alert, confirm, prompt, open, close, parent, top, frames, self, globalThis;\n";
+
+          // Regular expressions to match template patterns
+          var interpolateRegex = /<%=\s*(.*?)\s*%>/g;
+          var escapeRegex = /<%-(.*?)%>/g;
+          var evaluateRegex = /<%\s*([\s\S]*?)\s*%>/g;
+
+          // Create a modified source that sanitizes interpolated values
+          var modifiedSource = source
+            // Replace interpolation expressions with checks for global objects
+            .replace(interpolateRegex, function(match, p1) {
+              // Check if the interpolated expression contains references to global objects
+              var containsGlobalObj = false;
+              for (var i = 0; i < blockedGlobals.length; i++) {
+                var globalObj = blockedGlobals[i];
+                // Check for direct references like "window" or property access like "window.location"
+                var pattern = new RegExp('\\b' + globalObj + '\\b|\\b' + globalObj + '\\.', 'i');
+                if (pattern.test(p1)) {
+                  containsGlobalObj = true;
+                  break;
+                }
+              }
+
+              if (containsGlobalObj) {
+                // If it contains a global object, return undefined
+                return "'undefined'";
+              } else {
+                // Otherwise, keep the original interpolation
+                return match;
+              }
+            })
+            // Do the same for escaped interpolation
+            .replace(escapeRegex, function(match, p1) {
+              var containsGlobalObj = false;
+              for (var i = 0; i < blockedGlobals.length; i++) {
+                var globalObj = blockedGlobals[i];
+                var pattern = new RegExp('\\b' + globalObj + '\\b|\\b' + globalObj + '\\.', 'i');
+                if (pattern.test(p1)) {
+                  containsGlobalObj = true;
+                  break;
+                }
+              }
+
+              if (containsGlobalObj) {
+                return "'undefined'";
+              } else {
+                return match;
+              }
+            })
+            // For evaluate blocks, we need to be more careful
+            // We'll only block direct access to global objects in assignments and function calls
+            .replace(evaluateRegex, function(match, p1) {
+              // Skip if it doesn't contain any of our blocked globals
+              var containsGlobalObj = false;
+              for (var i = 0; i < blockedGlobals.length; i++) {
+                var globalObj = blockedGlobals[i];
+                var pattern = new RegExp('\\b' + globalObj + '\\b|\\b' + globalObj + '\\.', 'i');
+                if (pattern.test(p1)) {
+                  containsGlobalObj = true;
+                  break;
+                }
+              }
+
+              if (!containsGlobalObj) {
+                return match;
+              }
+
+              // If it contains global objects, we need to modify the code
+              // We'll replace direct references to global objects with undefined
+              var modifiedCode = p1;
+
+              // First, let's handle function calls like alert(), eval(), etc.
+              for (var i = 0; i < blockedGlobals.length; i++) {
+                var globalObj = blockedGlobals[i];
+
+                // Handle function calls with parentheses - e.g., alert('xss')
+                var funcCallPattern = new RegExp('\\b' + globalObj + '\\s*\\(', 'g');
+                modifiedCode = modifiedCode.replace(funcCallPattern, '(function(){return undefined;})(');
+
+                // Handle assignments to global objects - e.g., window.location = 'evil.com'
+                var assignmentPattern = new RegExp('\\b' + globalObj + '\\s*=', 'g');
+                modifiedCode = modifiedCode.replace(assignmentPattern, 'undefined =');
+
+                // Handle assignments to global object properties - e.g., window.location.href = 'evil.com'
+                var propAssignPattern = new RegExp('\\b' + globalObj + '\\.\\w+(?:\\.\\w+)*\\s*=', 'g');
+                modifiedCode = modifiedCode.replace(propAssignPattern, 'undefined =');
+
+                // Replace direct references to the global object
+                var directPattern = new RegExp('\\b' + globalObj + '\\b', 'g');
+                modifiedCode = modifiedCode.replace(directPattern, 'undefined');
+
+                // Replace property access on the global object
+                // This is more complex and might not catch all cases
+                var propPattern = new RegExp('\\b' + globalObj + '\\.(\\w+)', 'g');
+                modifiedCode = modifiedCode.replace(propPattern, 'undefined');
+              }
+
+              return '<% ' + modifiedCode + ' %>';
+            });
+
+          // Create a function from the modified source code with the preamble
+          var func = new Function(argument, '_', preamble + modifiedSource);
 
           // Execute the function with the secure data and underscore
           return func.call(this, secureData, secureUnderscore);

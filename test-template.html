@@ -41,6 +41,16 @@
             color: red;
             font-weight: bold;
         }
+
+        /* Styles for eval blocking tests */
+        .success {
+            color: green;
+            font-weight: bold;
+        }
+        .failure {
+            color: red;
+            font-weight: bold;
+        }
     </style>
 </head>
 <body>
@@ -63,6 +73,39 @@
         <div id="output11" class="test-section"></div>
         <div id="output12" class="test-section"></div>
         <div id="output13" class="test-section"></div>
+
+        <!-- New tests for global object blocking -->
+        <div id="output18" class="test-section"></div>
+        <div id="output19" class="test-section"></div>
+
+        <!-- Simple eval blocking tests -->
+        <h2>Simple Eval Blocking Tests <span class="safe">(Safe Mode)</span></h2>
+        <div class="test-section">
+            <h3>Test 1: Direct Eval Call</h3>
+            <div class="code">
+                var template = _.template("Result: <%= eval('2 + 2') %>");<br>
+                template({});
+            </div>
+            <div class="result" id="evalTest1"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>Test 2: Type of Eval</h3>
+            <div class="code">
+                var template = _.template("Type of eval: <%= typeof eval %>");<br>
+                template({});
+            </div>
+            <div class="result" id="evalTest2"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>Test 3: Normal Math (Should Work)</h3>
+            <div class="code">
+                var template = _.template("2 + 2 = <%= 2 + 2 %>");<br>
+                template({});
+            </div>
+            <div class="result" id="evalTest3"></div>
+        </div>
     </div>
 
     <div id="unsafe-mode-tests">
@@ -70,6 +113,9 @@
 
         <div id="output3" class="test-section"></div>
         <div id="output4" class="test-section"></div>
+
+        <div id="output14" class="test-section"></div>
+        <div id="output15" class="test-section"></div>
     </div>
 
     <script>
@@ -716,6 +762,180 @@
             "<h2>Test 4: String Methods (toUpperCase)</h2>" +
             "<div class='code'>&lt;%= items[i].toUpperCase() %&gt;</div>" +
             "<div class='result'>" + template4(data) + "</div>";
+
+        // Test 14: Access to window object in unsafe mode (should work)
+        var template14 = _.template(
+            "<p>Browser: <%= window.navigator.userAgent %></p>\n" +
+            "<p>URL: <%= window.location.href %></p>"
+        );
+        document.getElementById("output14").innerHTML =
+            "<h2>Test 14: Access to Window Object (Unsafe Mode)</h2>" +
+            "<div class='code'>&lt;%= window.navigator.userAgent %&gt;\n" +
+            "&lt;%= window.location.href %&gt;</div>" +
+            "<div class='result'>" + template14(data) + "</div>";
+
+        // Test 15: Eval function in unsafe mode (should work)
+        var template15 = _.template(
+            "<p>Eval result: <%= eval('2 + 2') %></p>\n" +
+            "<p>Current time: <%= new Date().toLocaleTimeString() %></p>"
+        );
+        document.getElementById("output15").innerHTML =
+            "<h2>Test 15: Eval Function (Unsafe Mode)</h2>" +
+            "<div class='code'>&lt;%= eval('2 + 2') %&gt;\n" +
+            "&lt;%= new Date().toLocaleTimeString() %&gt;</div>" +
+            "<div class='result'>" + template15(data) + "</div>";
+
+        // Test 18: Global Object Blocking in Safe Mode
+        _.templateSettings.safe = true;
+
+        // Create a template that tries to access global objects in different ways
+        var template18 = _.template(
+            "<h3>Global Object Access Test (Safe Mode)</h3>\n" +
+            "<table border='1' style='border-collapse: collapse; width: 100%;'>\n" +
+            "  <tr style='background-color: #f2f2f2;'>\n" +
+            "    <th style='padding: 8px; text-align: left;'>Expression</th>\n" +
+            "    <th style='padding: 8px; text-align: left;'>Result</th>\n" +
+            "    <th style='padding: 8px; text-align: left;'>Expected</th>\n" +
+            "    <th style='padding: 8px; text-align: left;'>Status</th>\n" +
+            "  </tr>\n" +
+            "  <tr>\n" +
+            "    <td style='padding: 8px;'>window</td>\n" +
+            "    <td style='padding: 8px;'><% var winType = typeof window; %><%= winType %></td>\n" +
+            "    <td style='padding: 8px;'>undefined</td>\n" +
+            "    <td style='padding: 8px;'><%= winType === 'undefined' ? \"<span style='color:green'>BLOCKED ✓</span>\" : \"<span style='color:red'>NOT BLOCKED ✗</span>\" %></td>\n" +
+            "  </tr>\n" +
+            "  <tr>\n" +
+            "    <td style='padding: 8px;'>document</td>\n" +
+            "    <td style='padding: 8px;'><% var docType = typeof document; %><%= docType %></td>\n" +
+            "    <td style='padding: 8px;'>undefined</td>\n" +
+            "    <td style='padding: 8px;'><%= docType === 'undefined' ? \"<span style='color:green'>BLOCKED ✓</span>\" : \"<span style='color:red'>NOT BLOCKED ✗</span>\" %></td>\n" +
+            "  </tr>\n" +
+            "  <tr>\n" +
+            "    <td style='padding: 8px;'>eval</td>\n" +
+            "    <td style='padding: 8px;'><% var evalType = typeof eval; %><%= evalType %></td>\n" +
+            "    <td style='padding: 8px;'>undefined</td>\n" +
+            "    <td style='padding: 8px;'><%= evalType === 'undefined' ? \"<span style='color:green'>BLOCKED ✓</span>\" : \"<span style='color:red'>NOT BLOCKED ✗</span>\" %></td>\n" +
+            "  </tr>\n" +
+            "  <tr>\n" +
+            "    <td style='padding: 8px;'>alert</td>\n" +
+            "    <td style='padding: 8px;'><% var alertType = typeof alert; %><%= alertType %></td>\n" +
+            "    <td style='padding: 8px;'>undefined</td>\n" +
+            "    <td style='padding: 8px;'><%= alertType === 'undefined' ? \"<span style='color:green'>BLOCKED ✓</span>\" : \"<span style='color:red'>NOT BLOCKED ✗</span>\" %></td>\n" +
+            "  </tr>\n" +
+            "  <tr>\n" +
+            "    <td style='padding: 8px;'>data.name (legitimate)</td>\n" +
+            "    <td style='padding: 8px;'><%= name %></td>\n" +
+            "    <td style='padding: 8px;'>John</td>\n" +
+            "    <td style='padding: 8px;'><%= name === 'John' ? \"<span style='color:green'>WORKS ✓</span>\" : \"<span style='color:red'>BROKEN ✗</span>\" %></td>\n" +
+            "  </tr>\n" +
+            "</table>\n" +
+            "<p><strong>Note:</strong> This test demonstrates how the secure template implementation blocks access to global objects when used in string interpolation.</p>"
+        );
+
+        document.getElementById("output18").innerHTML =
+            "<h2>Test 18: Global Object Blocking in String Interpolation</h2>" +
+            "<div class='code'>&lt;% var winType = typeof window; %&gt;\n" +
+            "&lt;% var docType = typeof document; %&gt;\n" +
+            "&lt;% var evalType = typeof eval; %&gt;\n" +
+            "&lt;% var alertType = typeof alert; %&gt;</div>" +
+            "<div class='result'>" + template18(data) + "</div>";
+
+        // Test 19: Global Object Blocking in Code Evaluation - SAFER VERSION
+        _.templateSettings.safe = true; // Ensure safe mode is enabled
+        var template19 = _.template(
+            "<h3>Global Object Access in Code Blocks Test (Safe Mode)</h3>\n" +
+            "<table border='1' style='border-collapse: collapse; width: 100%;'>\n" +
+            "  <tr style='background-color: #f2f2f2;'>\n" +
+            "    <th style='padding: 8px; text-align: left;'>Test</th>\n" +
+            "    <th style='padding: 8px; text-align: left;'>Code</th>\n" +
+            "    <th style='padding: 8px; text-align: left;'>Result</th>\n" +
+            "    <th style='padding: 8px; text-align: left;'>Status</th>\n" +
+            "  </tr>\n" +
+            "  <tr>\n" +
+            "    <td style='padding: 8px;'>Window Object</td>\n" +
+            "    <td style='padding: 8px;'><code>typeof window</code></td>\n" +
+            "    <td style='padding: 8px;'><% var windowType = typeof window; %><%= windowType %></td>\n" +
+            "    <td style='padding: 8px;'><%= windowType === 'undefined' ? \"<span style='color:green'>BLOCKED ✓</span>\" : \"<span style='color:red'>NOT BLOCKED ✗</span>\" %></td>\n" +
+            "  </tr>\n" +
+            "  <tr>\n" +
+            "    <td style='padding: 8px;'>Eval Function</td>\n" +
+            "    <td style='padding: 8px;'><code>typeof eval</code></td>\n" +
+            "    <td style='padding: 8px;'><% var evalType = typeof eval; %><%= evalType %></td>\n" +
+            "    <td style='padding: 8px;'><%= evalType === 'undefined' ? \"<span style='color:green'>BLOCKED ✓</span>\" : \"<span style='color:red'>NOT BLOCKED ✗</span>\" %></td>\n" +
+            "  </tr>\n" +
+            "  <tr>\n" +
+            "    <td style='padding: 8px;'>Alert Function</td>\n" +
+            "    <td style='padding: 8px;'><code>typeof alert</code></td>\n" +
+            "    <td style='padding: 8px;'><% var alertType = typeof alert; %><%= alertType %></td>\n" +
+            "    <td style='padding: 8px;'><%= alertType === 'undefined' ? \"<span style='color:green'>BLOCKED ✓</span>\" : \"<span style='color:red'>NOT BLOCKED ✗</span>\" %></td>\n" +
+            "  </tr>\n" +
+            "  <tr>\n" +
+            "    <td style='padding: 8px;'>Normal Variables</td>\n" +
+            "    <td style='padding: 8px;'><code>var sum = 0; for(var i=0; i<5; i++) { sum += i; }</code></td>\n" +
+            "    <td style='padding: 8px;'><% var sum = 0; for(var i=0; i<5; i++) { sum += i; } %><%= sum %></td>\n" +
+            "    <td style='padding: 8px;'><%= sum === 10 ? \"<span style='color:green'>WORKS ✓</span>\" : \"<span style='color:red'>BROKEN ✗</span>\" %></td>\n" +
+            "  </tr>\n" +
+            "</table>\n" +
+            "<p><strong>Note:</strong> This test demonstrates how the secure template implementation blocks access to global objects in code evaluation blocks while preserving normal JavaScript functionality.</p>"
+        );
+
+        document.getElementById("output19").innerHTML =
+            "<h2>Test 19: Global Object Blocking in Code Evaluation</h2>" +
+            "<div class='code'>&lt;% var windowType = typeof window; %&gt;\n" +
+            "&lt;% var evalType = typeof eval; %&gt;\n" +
+            "&lt;% var alertType = typeof alert; %&gt;\n" +
+            "&lt;% var sum = 0; for(var i=0; i<5; i++) { sum += i; } %&gt;</div>" +
+            "<div class='result'>" + template19(data) + "</div>";
+
+        // Simple eval blocking tests
+        _.templateSettings.safe = true;
+
+        // Test 1: Direct Eval Call
+        try {
+            var evalTemplate1 = _.template("Result: <%= eval('2 + 2') %>");
+            var evalResult1 = evalTemplate1({});
+            document.getElementById("evalTest1").innerHTML =
+                "Output: " + evalResult1 + "<br>" +
+                "Status: " + (evalResult1.includes("undefined") ?
+                    "<span class='safe'>BLOCKED ✓</span>" :
+                    "<span class='unsafe'>NOT BLOCKED ✗</span>");
+        } catch (error) {
+            document.getElementById("evalTest1").innerHTML =
+                "Error: " + error.message + "<br>" +
+                "Status: <span class='safe'>BLOCKED ✓</span>";
+        }
+
+        // Test 2: Type of Eval
+        try {
+            var evalTemplate2 = _.template("Type of eval: <%= typeof eval %>");
+            var evalResult2 = evalTemplate2({});
+            document.getElementById("evalTest2").innerHTML =
+                "Output: " + evalResult2 + "<br>" +
+                "Status: " + (evalResult2.includes("undefined") ?
+                    "<span class='safe'>BLOCKED ✓</span>" :
+                    "<span class='unsafe'>NOT BLOCKED ✗</span>");
+        } catch (error) {
+            document.getElementById("evalTest2").innerHTML =
+                "Error: " + error.message + "<br>" +
+                "Status: <span class='safe'>BLOCKED ✓</span>";
+        }
+
+        // Test 3: Normal Math
+        try {
+            var evalTemplate3 = _.template("2 + 2 = <%= 2 + 2 %>");
+            var evalResult3 = evalTemplate3({});
+            document.getElementById("evalTest3").innerHTML =
+                "Output: " + evalResult3 + "<br>" +
+                "Status: " + (evalResult3.includes("4") ?
+                    "<span class='safe'>WORKS ✓</span>" :
+                    "<span class='unsafe'>BROKEN ✗</span>");
+        } catch (error) {
+            document.getElementById("evalTest3").innerHTML =
+                "Error: " + error.message + "<br>" +
+                "Status: <span class='unsafe'>BROKEN ✗</span>";
+        }
+
+
     </script>
 </body>
 </html>
