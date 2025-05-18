@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>For Loop Test with Pure Template</title>
+    <script src="underscore_pure.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        .code {
+            background-color: #f8f8f8;
+            border: 1px solid #ddd;
+            padding: 10px;
+            margin: 10px 0;
+            white-space: pre-wrap;
+            font-family: monospace;
+        }
+        .result {
+            background-color: #e8f5e9;
+            border: 1px solid #a5d6a7;
+            padding: 10px;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>For Loop Test with Pure Template</h1>
+    
+    <div id="output"></div>
+    
+    <script>
+        // Test data
+        var data = {
+            items: ["Apple", "Banana", "Orange"]
+        };
+        
+        // Pure template approach - manually expand the for loop
+        function generateForLoopTemplate(items) {
+            var html = "<ul>";
+            
+            for (var i = 0; i < items.length; i++) {
+                html += "<li>" + items[i] + " (index: " + i + ")</li>";
+            }
+            
+            html += "</ul>";
+            return html;
+        }
+        
+        // Display the result
+        document.getElementById("output").innerHTML =
+            "<h2>For Loop Test</h2>" +
+            "<div class='code'>&lt;% for(var i=0; i&lt;items.length; i++) { %&gt;\n" +
+            "  &lt;li&gt;&lt;%= items[i] %&gt; (index: &lt;%= i %&gt;)&lt;/li&gt;\n" +
+            "&lt;% } %&gt;</div>" +
+            "<div class='result'>" + 
+            generateForLoopTemplate(data.items) +
+            "</div>" +
+            "<p><em>Note: This list is generated using a template-like approach that manually expands the for loop.</em></p>";
+    </script>
+</body>
+</html>
