@@ -990,6 +990,9 @@
         // Create a global sandbox for the entire template
         var globalSandbox = createSandbox(data, _);
 
+        // Add the underscore object directly to the sandbox
+        globalSandbox._ = _;
+
         // Second pass: process the template
         for (var i = 0; i < matches.length; i++) {
           var m = matches[i];
@@ -1096,9 +1099,6 @@
           isNaN: isNaN,
           isFinite: isFinite,
 
-          // Add underscore utility functions
-          _: _,
-
           // Add data object
           data: data,
 
@@ -1127,6 +1127,16 @@
             sandbox[key] = safeGlobals[key];
           }
         }
+
+        // Add underscore utility functions directly to the sandbox
+        sandbox._ = _;
+
+        // Add specific underscore functions that are commonly used in templates
+        sandbox._.each = _.each;
+        sandbox._.map = _.map;
+        sandbox._.filter = _.filter;
+        sandbox._.escape = _.escape;
+        sandbox._.unescape = _.unescape;
 
         return sandbox;
       }
@@ -1173,22 +1183,24 @@
 
           var loopBody = forLoopMatch[4];
 
+          // Create a parent scope for the loop
+          var loopScope = Object.create(sandbox);
+
           // Execute the loop
           for (var i = startVal; i < endVal; i++) {
-            // Create a new scope for each iteration that inherits from the parent sandbox
-            var iterationScope = Object.create(sandbox);
-            iterationScope[loopVar] = i;
+            // Set the loop variable in the loop scope
+            loopScope[loopVar] = i;
 
             // Execute the loop body
             try {
-              executeStatements(loopBody, iterationScope);
-
-              // Copy any changes to _resultOutput back to the parent sandbox
-              sandbox._resultOutput = iterationScope._resultOutput;
+              executeStatements(loopBody, loopScope);
             } catch (e) {
               console.error('Error in for loop iteration ' + i + ':', e);
             }
           }
+
+          // Copy the result output back to the parent sandbox
+          sandbox._resultOutput = loopScope._resultOutput;
 
           return sandbox._resultOutput;
         }
@@ -1206,48 +1218,33 @@
 
           // Handle case where collection is undefined or not an array
           if (!collection) {
+            console.warn("Collection is undefined:", collectionName);
             return sandbox._resultOutput;
           }
 
-          // Handle both arrays and objects
-          if (Array.isArray(collection)) {
-            // For arrays
-            for (var i = 0; i < collection.length; i++) {
-              // Create a new scope for each iteration that inherits from the parent sandbox
-              var iterationScope = Object.create(sandbox);
-              iterationScope[itemVar] = collection[i];
-              if (indexVar) iterationScope[indexVar] = i;
+          // Create a custom each function that captures output
+          var processItem = function(item, index) {
+            // Create a new scope for each iteration that inherits from the parent sandbox
+            var iterationScope = Object.create(sandbox);
+            iterationScope[itemVar] = item;
+            if (indexVar) iterationScope[indexVar] = index;
 
-              // Execute the loop body
-              try {
-                executeStatements(loopBody, iterationScope);
+            // Execute the loop body
+            try {
+              executeStatements(loopBody, iterationScope);
 
-                // Copy any changes to _resultOutput back to the parent sandbox
-                sandbox._resultOutput = iterationScope._resultOutput;
-              } catch (e) {
-                console.error('Error in _.each iteration ' + i + ':', e);
-              }
+              // Copy any changes to _resultOutput back to the parent sandbox
+              sandbox._resultOutput = iterationScope._resultOutput;
+            } catch (e) {
+              console.error('Error in _.each iteration:', e);
             }
-          } else if (typeof collection === 'object' && collection !== null) {
-            // For objects
-            var keys = Object.keys(collection);
-            for (var i = 0; i < keys.length; i++) {
-              var key = keys[i];
-              // Create a new scope for each iteration that inherits from the parent sandbox
-              var iterationScope = Object.create(sandbox);
-              iterationScope[itemVar] = collection[key];
-              if (indexVar) iterationScope[indexVar] = key;
+          };
 
-              // Execute the loop body
-              try {
-                executeStatements(loopBody, iterationScope);
-
-                // Copy any changes to _resultOutput back to the parent sandbox
-                sandbox._resultOutput = iterationScope._resultOutput;
-              } catch (e) {
-                console.error('Error in _.each iteration for key ' + key + ':', e);
-              }
-            }
+          // Use the actual _.each function from underscore
+          try {
+            _.each(collection, processItem);
+          } catch (e) {
+            console.error('Error executing _.each:', e);
           }
 
           return sandbox._resultOutput;
@@ -1445,6 +1442,8 @@
           if (stmt) {
             // Make sure we're passing the correct scope
             try {
+              // Pass the underscore object to ensure it's available
+              var _ = scope._ || _$1;
               safeEval(stmt + ';', scope, _);
             } catch (e) {
               console.error('Error executing statement:', stmt, e);
