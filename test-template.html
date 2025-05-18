@@ -227,22 +227,7 @@
             "<div class='result'>" + template1(data) + "</div>";
 
         // Test 2: More complex template with escaping and property access
-        // Use a template-like approach that manually implements _.each
-        function generateEachTemplate(items, user) {
-            var html = "<ul>";
-
-            // Manually implement _.each functionality
-            _.each(items, function(item) {
-                html += "<li>" + item + "</li>";
-            });
-
-            html += "</ul>";
-            html += "<p>User: " + _.escape(user.firstName) + " " + _.escape(user.lastName) + "</p>";
-
-            return html;
-        }
-
-        // Keep the template version for reference
+        // Use the template directly with _.each
         var template2 = _.template(
             "<ul>\n" +
             "<% _.each(items, function(item) { %>\n" +
@@ -258,10 +243,9 @@
             "  &lt;li&gt;&lt;%= item %&gt;&lt;/li&gt;\n" +
             "&lt;% }); %&gt;</div>" +
             "<div class='result'>" +
-            // Use the template-like approach with _.each
-            generateEachTemplate(data.items, data.user) +
-            "</div>" +
-            "<p><em>Note: This list is generated using a template-like approach that manually implements _.each.</em></p>";
+            // Use the template directly
+            template2(data) +
+            "</div>";
 
         // Test 5: For loop in safe mode
         // Use a template that manually expands the for loop
