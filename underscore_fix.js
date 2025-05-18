@@ -987,6 +987,9 @@
           return match;
         });
 
+        // Create a global sandbox for the entire template
+        var globalSandbox = createSandbox(data, _);
+
         // Second pass: process the template
         for (var i = 0; i < matches.length; i++) {
           var m = matches[i];
@@ -1022,7 +1025,7 @@
             // For evaluate blocks, we'll use our safe interpreter
             try {
               // Execute the code safely using our interpreter
-              var evalResult = safeEval(m.evaluate, data, _);
+              var evalResult = safeEval(m.evaluate, globalSandbox, _);
               if (evalResult) {
                 result += evalResult;
               }
@@ -1037,6 +1040,7 @@
           result += text.slice(index);
         }
 
+        // Return the final result
         return result;
       };
 
@@ -1072,11 +1076,10 @@
         return value;
       }
 
-      // Safe evaluation function for template evaluate blocks
-      function safeEval(code, data, _) {
+      // Helper function to create a sandbox environment
+      function createSandbox(data, _) {
         // Create a sandboxed environment with limited capabilities
         var sandbox = Object.create(null);
-        var resultOutput = '';
 
         // Add safe versions of common JavaScript functions
         var safeGlobals = {
@@ -1102,9 +1105,12 @@
           // Add print function (appends to result)
           print: function() {
             var args = Array.prototype.slice.call(arguments);
-            resultOutput += args.join('');
+            sandbox._resultOutput += args.join('');
           }
         };
+
+        // Initialize result output
+        sandbox._resultOutput = '';
 
         // Copy all properties from data to sandbox
         if (data && typeof data === 'object') {
@@ -1120,6 +1126,16 @@
           if (safeGlobals.hasOwnProperty(key)) {
             sandbox[key] = safeGlobals[key];
           }
+        }
+
+        return sandbox;
+      }
+
+      // Safe evaluation function for template evaluate blocks
+      function safeEval(code, sandbox, _) {
+        // If sandbox is not a sandbox but data, create a sandbox
+        if (!sandbox._resultOutput && sandbox !== null && typeof sandbox === 'object') {
+          sandbox = createSandbox(sandbox, _);
         }
 
         // Parse and execute common template operations
@@ -1159,19 +1175,22 @@
 
           // Execute the loop
           for (var i = startVal; i < endVal; i++) {
-            // Create a new scope for each iteration
+            // Create a new scope for each iteration that inherits from the parent sandbox
             var iterationScope = Object.create(sandbox);
             iterationScope[loopVar] = i;
 
             // Execute the loop body
             try {
               executeStatements(loopBody, iterationScope);
+
+              // Copy any changes to _resultOutput back to the parent sandbox
+              sandbox._resultOutput = iterationScope._resultOutput;
             } catch (e) {
               console.error('Error in for loop iteration ' + i + ':', e);
             }
           }
 
-          return resultOutput;
+          return sandbox._resultOutput;
         }
 
         // 2. Handle forEach/each loops: _.each(items, function(item) { ... })
@@ -1187,14 +1206,14 @@
 
           // Handle case where collection is undefined or not an array
           if (!collection) {
-            return resultOutput;
+            return sandbox._resultOutput;
           }
 
           // Handle both arrays and objects
           if (Array.isArray(collection)) {
             // For arrays
             for (var i = 0; i < collection.length; i++) {
-              // Create a new scope for each iteration
+              // Create a new scope for each iteration that inherits from the parent sandbox
               var iterationScope = Object.create(sandbox);
               iterationScope[itemVar] = collection[i];
               if (indexVar) iterationScope[indexVar] = i;
@@ -1202,6 +1221,9 @@
               // Execute the loop body
               try {
                 executeStatements(loopBody, iterationScope);
+
+                // Copy any changes to _resultOutput back to the parent sandbox
+                sandbox._resultOutput = iterationScope._resultOutput;
               } catch (e) {
                 console.error('Error in _.each iteration ' + i + ':', e);
               }
@@ -1211,7 +1233,7 @@
             var keys = Object.keys(collection);
             for (var i = 0; i < keys.length; i++) {
               var key = keys[i];
-              // Create a new scope for each iteration
+              // Create a new scope for each iteration that inherits from the parent sandbox
               var iterationScope = Object.create(sandbox);
               iterationScope[itemVar] = collection[key];
               if (indexVar) iterationScope[indexVar] = key;
@@ -1219,13 +1241,16 @@
               // Execute the loop body
               try {
                 executeStatements(loopBody, iterationScope);
+
+                // Copy any changes to _resultOutput back to the parent sandbox
+                sandbox._resultOutput = iterationScope._resultOutput;
               } catch (e) {
                 console.error('Error in _.each iteration for key ' + key + ':', e);
               }
             }
           }
 
-          return resultOutput;
+          return sandbox._resultOutput;
         }
 
         // 3. Handle if statements: if (condition) { ... } else { ... }
@@ -1238,12 +1263,20 @@
           var elseBlock = ifMatch[3];
 
           if (condition) {
-            executeStatements(thenBlock, sandbox);
+            // Create a new scope for the then block
+            var thenScope = Object.create(sandbox);
+            executeStatements(thenBlock, thenScope);
+            // Copy any changes to _resultOutput back to the parent sandbox
+            sandbox._resultOutput = thenScope._resultOutput;
           } else if (elseBlock) {
-            executeStatements(elseBlock, sandbox);
+            // Create a new scope for the else block
+            var elseScope = Object.create(sandbox);
+            executeStatements(elseBlock, elseScope);
+            // Copy any changes to _resultOutput back to the parent sandbox
+            sandbox._resultOutput = elseScope._resultOutput;
           }
 
-          return resultOutput;
+          return sandbox._resultOutput;
         }
 
         // 4. Handle simple variable assignments: var x = expression;
@@ -1255,7 +1288,7 @@
           var expression = assignmentMatch[2];
 
           sandbox[varName] = evaluateSimpleExpression(expression, sandbox);
-          return resultOutput;
+          return sandbox._resultOutput;
         }
 
         // 5. Handle print statements: print("Hello", name);
@@ -1264,8 +1297,8 @@
 
         if (printMatch) {
           var args = parseArguments(printMatch[1], sandbox);
-          resultOutput += args.join('');
-          return resultOutput;
+          sandbox._resultOutput += args.join('');
+          return sandbox._resultOutput;
         }
 
         // 6. Handle function calls: func(arg1, arg2);
@@ -1281,11 +1314,11 @@
             sandbox[funcName].apply(null, args);
           }
 
-          return resultOutput;
+          return sandbox._resultOutput;
         }
 
         // If we get here, we couldn't parse the code
-        return resultOutput;
+        return sandbox._resultOutput;
       }
 
       // Helper function to evaluate simple expressions
@@ -1411,7 +1444,11 @@
           var stmt = statements[i].trim();
           if (stmt) {
             // Make sure we're passing the correct scope
-            safeEval(stmt + ';', scope, _);
+            try {
+              safeEval(stmt + ';', scope, _);
+            } catch (e) {
+              console.error('Error executing statement:', stmt, e);
+            }
           }
         }
       }
