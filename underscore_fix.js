@@ -968,7 +968,6 @@
 
       // This is our safe template renderer function
       var template = function(data) {
-        console.log("Template called with data:", data);
         data = data || {};
         var _ = _$1;
         var result = '';
@@ -976,9 +975,7 @@
         var index = 0;
 
         // First pass: collect all matches and their positions
-        console.log("Collecting template matches");
         text.replace(matcher, function(match, escape, interpolate, evaluate, offset) {
-          console.log("Found match:", { match, escape, interpolate, evaluate, offset });
           matches.push({
             match: match,
             escape: escape,
@@ -991,10 +988,8 @@
         });
 
         // Second pass: process the template
-        console.log("Processing template with", matches.length, "matches");
         for (var i = 0; i < matches.length; i++) {
           var m = matches[i];
-          console.log("Processing match", i, ":", m);
 
           // Add text before the match
           result += text.slice(index, m.offset);
@@ -1002,26 +997,21 @@
 
           // Process the match
           if (m.escape) {
-            console.log("Processing escape block:", m.escape);
             var escapeValue = '';
             try {
               // Safely access nested properties
               escapeValue = getPropertySafely(data, m.escape);
-              console.log("Escape value before escaping:", escapeValue);
               escapeValue = escapeValue == null ? '' : _.escape(escapeValue);
-              console.log("Escape value after escaping:", escapeValue);
             } catch (e) {
               escapeValue = '';
               console.error('Template error in escape expression:', m.escape, e);
             }
             result += escapeValue;
           } else if (m.interpolate) {
-            console.log("Processing interpolate block:", m.interpolate);
             var interpValue = '';
             try {
               // Safely access nested properties
               interpValue = getPropertySafely(data, m.interpolate);
-              console.log("Interpolate value:", interpValue);
               interpValue = interpValue == null ? '' : interpValue;
             } catch (e) {
               interpValue = '';
@@ -1029,11 +1019,13 @@
             }
             result += interpValue;
           } else if (m.evaluate) {
-            console.log("Processing evaluate block:", m.evaluate);
             // For evaluate blocks, we'll use our safe interpreter
             try {
               // Execute the code safely using our interpreter
-              safeEval(m.evaluate, data, _, result);
+              var evalResult = safeEval(m.evaluate, data, _);
+              if (evalResult) {
+                result += evalResult;
+              }
             } catch (e) {
               console.error('Template error in evaluate expression:', m.evaluate, e);
             }
@@ -1082,11 +1074,9 @@
 
       // Safe evaluation function for template evaluate blocks
       function safeEval(code, data, _) {
-        console.log("safeEval called with code:", code);
-        console.log("data:", data);
-
         // Create a sandboxed environment with limited capabilities
         var sandbox = Object.create(null);
+        var resultOutput = '';
 
         // Add safe versions of common JavaScript functions
         var safeGlobals = {
@@ -1112,33 +1102,25 @@
           // Add print function (appends to result)
           print: function() {
             var args = Array.prototype.slice.call(arguments);
-            result += args.join('');
+            resultOutput += args.join('');
           }
         };
 
         // Copy all properties from data to sandbox
-        console.log("Copying data properties to sandbox");
         if (data && typeof data === 'object') {
           for (var key in data) {
             if (data.hasOwnProperty(key)) {
-              console.log("Copying property:", key, "=", data[key]);
               sandbox[key] = data[key];
             }
           }
-        } else {
-          console.warn("Data is not an object:", data);
         }
 
         // Copy all safe globals to sandbox
-        console.log("Copying safe globals to sandbox");
         for (var key in safeGlobals) {
           if (safeGlobals.hasOwnProperty(key)) {
-            console.log("Copying global:", key);
             sandbox[key] = safeGlobals[key];
           }
         }
-
-        console.log("Sandbox keys:", Object.keys(sandbox));
 
         // Parse and execute common template operations
 
@@ -1175,31 +1157,21 @@
 
           var loopBody = forLoopMatch[4];
 
-          // Create a result variable to capture any output from the loop
-          var loopResult = '';
-
           // Execute the loop
           for (var i = startVal; i < endVal; i++) {
             // Create a new scope for each iteration
             var iterationScope = Object.create(sandbox);
             iterationScope[loopVar] = i;
 
-            // Execute the loop body and capture any output
-            var iterationResult = '';
+            // Execute the loop body
             try {
-              iterationResult = executeStatements(loopBody, iterationScope) || '';
-              loopResult += iterationResult;
+              executeStatements(loopBody, iterationScope);
             } catch (e) {
               console.error('Error in for loop iteration ' + i + ':', e);
             }
           }
 
-          // Return any output from the loop
-          if (loopResult) {
-            result += loopResult;
-          }
-
-          return;
+          return resultOutput;
         }
 
         // 2. Handle forEach/each loops: _.each(items, function(item) { ... })
@@ -1215,8 +1187,7 @@
 
           // Handle case where collection is undefined or not an array
           if (!collection) {
-            console.warn("Collection is undefined:", collectionName);
-            return;
+            return resultOutput;
           }
 
           // Handle both arrays and objects
@@ -1229,7 +1200,11 @@
               if (indexVar) iterationScope[indexVar] = i;
 
               // Execute the loop body
-              executeStatements(loopBody, iterationScope);
+              try {
+                executeStatements(loopBody, iterationScope);
+              } catch (e) {
+                console.error('Error in _.each iteration ' + i + ':', e);
+              }
             }
           } else if (typeof collection === 'object' && collection !== null) {
             // For objects
@@ -1242,11 +1217,15 @@
               if (indexVar) iterationScope[indexVar] = key;
 
               // Execute the loop body
-              executeStatements(loopBody, iterationScope);
+              try {
+                executeStatements(loopBody, iterationScope);
+              } catch (e) {
+                console.error('Error in _.each iteration for key ' + key + ':', e);
+              }
             }
           }
 
-          return;
+          return resultOutput;
         }
 
         // 3. Handle if statements: if (condition) { ... } else { ... }
@@ -1264,7 +1243,7 @@
             executeStatements(elseBlock, sandbox);
           }
 
-          return;
+          return resultOutput;
         }
 
         // 4. Handle simple variable assignments: var x = expression;
@@ -1276,7 +1255,7 @@
           var expression = assignmentMatch[2];
 
           sandbox[varName] = evaluateSimpleExpression(expression, sandbox);
-          return;
+          return resultOutput;
         }
 
         // 5. Handle print statements: print("Hello", name);
@@ -1285,8 +1264,8 @@
 
         if (printMatch) {
           var args = parseArguments(printMatch[1], sandbox);
-          result += args.join('');
-          return;
+          resultOutput += args.join('');
+          return resultOutput;
         }
 
         // 6. Handle function calls: func(arg1, arg2);
@@ -1302,11 +1281,11 @@
             sandbox[funcName].apply(null, args);
           }
 
-          return;
+          return resultOutput;
         }
 
         // If we get here, we couldn't parse the code
-        console.warn('Could not safely evaluate:', code);
+        return resultOutput;
       }
 
       // Helper function to evaluate simple expressions
@@ -1427,20 +1406,14 @@
       function executeStatements(code, scope) {
         // Split the code into statements
         var statements = code.split(';');
-        var stmtResult = '';
 
         for (var i = 0; i < statements.length; i++) {
           var stmt = statements[i].trim();
           if (stmt) {
             // Make sure we're passing the correct scope
-            var currentResult = safeEval(stmt + ';', scope, _);
-            if (currentResult) {
-              stmtResult += currentResult;
-            }
+            safeEval(stmt + ';', scope, _);
           }
         }
-
-        return stmtResult;
       }
 
       // Helper function to parse function arguments
