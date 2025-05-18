@@ -1193,17 +1193,39 @@
         var eachLoopMatch = code.match(eachLoopRegex);
 
         if (eachLoopMatch) {
-          var collection = sandbox[eachLoopMatch[1]];
+          var collectionName = eachLoopMatch[1];
+          var collection = sandbox[collectionName];
           var itemVar = eachLoopMatch[2];
           var indexVar = eachLoopMatch[3];
           var loopBody = eachLoopMatch[4];
 
+          // Handle case where collection is undefined or not an array
+          if (!collection) {
+            console.warn("Collection is undefined:", collectionName);
+            return;
+          }
+
+          // Handle both arrays and objects
           if (Array.isArray(collection)) {
+            // For arrays
             for (var i = 0; i < collection.length; i++) {
               // Create a new scope for each iteration
               var iterationScope = Object.create(sandbox);
               iterationScope[itemVar] = collection[i];
               if (indexVar) iterationScope[indexVar] = i;
+
+              // Execute the loop body
+              executeStatements(loopBody, iterationScope);
+            }
+          } else if (typeof collection === 'object' && collection !== null) {
+            // For objects
+            var keys = Object.keys(collection);
+            for (var i = 0; i < keys.length; i++) {
+              var key = keys[i];
+              // Create a new scope for each iteration
+              var iterationScope = Object.create(sandbox);
+              iterationScope[itemVar] = collection[key];
+              if (indexVar) iterationScope[indexVar] = key;
 
               // Execute the loop body
               executeStatements(loopBody, iterationScope);
